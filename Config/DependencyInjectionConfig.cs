@@ -11,6 +11,11 @@ public static class DependencyInjectionConfig
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<ICourseService, CourseService>();
+        services.AddScoped<IEnrollmentService, EnrollmentService>();
+        services.AddScoped<IContentService, ContentService>();
+        services.AddScoped<IQuestionService, QuestionService>();
+        services.AddScoped<IModuleService, ModuleService>();
         return services;
     }
 }

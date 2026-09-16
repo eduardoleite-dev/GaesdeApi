@@ -1,0 +1,95 @@
+using System.Security.Claims;
+using GaesdeApi.DTOs;
+using GaesdeApi.Models;
+using GaesdeApi.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace GaesdeApi.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class EnrollmentsController : ControllerBase
+{
+    private readonly IEnrollmentService _enrollmentService;
+
+    public EnrollmentsController(IEnrollmentService enrollmentService)
+    {
+        _enrollmentService = enrollmentService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var userId = GetUserId();
+        return userId is null
+            ? Unauthorized()
+            : Ok(await _enrollmentService.GetAllAsync(userId, IsAdministrator()));
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        var enrollment = await _enrollmentService.GetByIdAsync(id, userId, IsAdministrator());
+        return enrollment is null ? NotFound() : Ok(enrollment);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create(CreateEnrollmentRequestDto request)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        var enrollment = await _enrollmentService.CreateAsync(userId, IsAdministrator(), request);
+        return enrollment is null
+            ? Conflict(new { message = Messages.Enrollments.CreateConflict })
+            : CreatedAtAction(nameof(GetById), new { id = enrollment.Id }, enrollment);
+    }
+
+    [HttpPatch("{id}/progress")]
+    public async Task<IActionResult> UpdateProgress(string id, UpdateEnrollmentProgressRequestDto request)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        var enrollment = await _enrollmentService.UpdateProgressAsync(
+            id, userId, IsAdministrator(), request.ProgressPercentage);
+        return enrollment is null
+            ? BadRequest(new { message = Messages.Enrollments.InvalidProgressOrNotFound })
+            : Ok(enrollment);
+    }
+
+    [HttpPatch("{id}/status/{status}")]
+    public async Task<IActionResult> UpdateStatus(string id, EnrollmentStatus status)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        var enrollment = await _enrollmentService.UpdateStatusAsync(id, userId, IsAdministrator(), status);
+        return enrollment is null ? NotFound() : Ok(enrollment);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        return await _enrollmentService.DeleteAsync(id, userId, IsAdministrator())
+            ? NoContent()
+            : NotFound();
+    }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    private bool IsAdministrator() => User.IsInRole(AccessLevel.Administrador.ToString());
+}
