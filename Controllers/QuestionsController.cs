@@ -1,4 +1,5 @@
 using GaesdeApi.DTOs;
+using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,10 +19,16 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? quizId = null)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? quizId = null, [FromQuery] QuestionType? type = null)
     {
-        return Ok(await _questionService.GetAllAsync(quizId));
+        var questions = await _questionService.GetAllAsync(quizId);
+        if (type.HasValue)
+            questions = questions.Where(question => question.Type == type.Value).ToArray();
+        return Ok(Utils.Paginate(questions, pagination));
     }
+
+    [NonAction]
+    public Task<IActionResult> GetAll(string? quizId) => GetAll(new PaginationRequest(), quizId);
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

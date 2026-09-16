@@ -18,10 +18,13 @@ public class QuizzesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination)
     {
-        return Ok(await _quizService.GetAllAsync());
+        return Ok(Utils.Paginate(await _quizService.GetAllAsync(), pagination));
     }
+
+    [NonAction]
+    public Task<IActionResult> GetAll() => GetAll(new PaginationRequest());
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

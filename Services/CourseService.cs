@@ -28,6 +28,26 @@ public class CourseService : ICourseService
         return courses.Select(ToResponse).ToArray();
     }
 
+    public async Task<IReadOnlyCollection<CourseResponseDto>> GetVisibleAsync(string userId, AccessLevel accessLevel)
+    {
+        var filter = accessLevel switch
+        {
+            AccessLevel.Administrador => Builders<Course>.Filter.Eq(course => course.DeletedAt, null),
+            AccessLevel.Professor => Builders<Course>.Filter.And(
+                Builders<Course>.Filter.Eq(course => course.InstructorId, userId),
+                Builders<Course>.Filter.Eq(course => course.DeletedAt, null)),
+            _ => Builders<Course>.Filter.And(
+                Builders<Course>.Filter.Eq(course => course.Status, CourseStatus.Published),
+                Builders<Course>.Filter.Eq(course => course.DeletedAt, null))
+        };
+
+        var courses = await _coursesCollection.Find(filter)
+            .SortBy(course => course.Title)
+            .ToListAsync();
+
+        return courses.Select(ToResponse).ToArray();
+    }
+
     public async Task<CourseResponseDto?> GetByIdAsync(string id)
     {
         var course = await _coursesCollection
@@ -35,6 +55,22 @@ public class CourseService : ICourseService
             .FirstOrDefaultAsync();
 
         return course is null ? null : ToResponse(course);
+    }
+
+    public async Task<CourseResponseDto?> GetVisibleByIdAsync(string id, string userId, AccessLevel accessLevel)
+    {
+        var course = await _coursesCollection
+            .Find(existingCourse => existingCourse.Id == id && existingCourse.DeletedAt == null)
+            .FirstOrDefaultAsync();
+
+        if (course is null ||
+            (accessLevel == AccessLevel.Professor && course.InstructorId != userId) ||
+            (accessLevel != AccessLevel.Administrador &&
+             accessLevel != AccessLevel.Professor &&
+             course.Status != CourseStatus.Published))
+            return null;
+
+        return ToResponse(course);
     }
 
     public async Task<CourseResponseDto?> CreateAsync(string instructorId, CreateCourseRequestDto request)
@@ -92,6 +128,23 @@ public class CourseService : ICourseService
         course.CategoryId = request.CategoryId;
         course.UpdatedAt = DateTime.UtcNow;
 
+        await _coursesCollection.ReplaceOneAsync(existingCourse => existingCourse.Id == id, course);
+        return ToResponse(course);
+    }
+
+    public async Task<CourseResponseDto?> SubmitForReviewAsync(string id, string instructorId)
+    {
+        var course = await _coursesCollection.Find(existingCourse =>
+                existingCourse.Id == id &&
+                existingCourse.InstructorId == instructorId &&
+                existingCourse.DeletedAt == null)
+            .FirstOrDefaultAsync();
+
+        if (course is null || course.Status != CourseStatus.Draft)
+            return null;
+
+        course.Status = CourseStatus.Review;
+        course.UpdatedAt = DateTime.UtcNow;
         await _coursesCollection.ReplaceOneAsync(existingCourse => existingCourse.Id == id, course);
         return ToResponse(course);
     }

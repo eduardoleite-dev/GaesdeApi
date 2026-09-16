@@ -1,0 +1,225 @@
+// Estrutura lógica das coleções MongoDB da GaesdeApi.
+// Os nomes das tabelas representam as coleções configuradas nos services.
+// Campos json representam arrays/objetos embutidos no documento MongoDB.
+
+Enum AccessLevel {
+  ADMINISTRADOR [note: '0']
+  PROFESSOR [note: '2']
+  ALUNO [note: '3']
+  VENDEDOR [note: '4']
+}
+
+Enum CourseStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+Enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+Enum EnrollmentStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  DROPPED
+  COMPLETED
+}
+
+Enum ContentType {
+  VIDEO
+  TEXT
+  PDF
+  QUIZ
+  ASSIGNMENT
+}
+
+Enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  ESSAY
+  MATCHING
+}
+
+Enum CommentType {
+  COURSE
+  CHAT
+}
+
+Table Users {
+  _id objectid [pk]
+  name varchar [not null]
+  email varchar [unique, not null]
+  password_hash varchar [not null, note: 'Hash bcrypt; nunca texto puro']
+  avatar_url varchar
+  bio text
+  email_verified_at timestamp
+  last_login_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+  access_level int [not null, default: 3, note: '0 administrador, 2 professor, 3 aluno, 4 vendedor']
+}
+
+Table Categories {
+  _id objectid [pk]
+  name varchar [not null, unique]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table Courses {
+  _id objectid [pk]
+  title varchar [not null]
+  slug varchar [not null, unique]
+  description text
+  cover_image varchar
+  price decimal [not null, default: 0]
+  status varchar [not null, default: 'Draft']
+  level varchar [not null]
+  instructor_id objectid [not null, ref: > Users._id, note: 'Usuário deve ter access_level = 2']
+  category_id objectid [ref: > Categories._id]
+  published_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table Modules {
+  _id objectid [pk]
+  course_id objectid [not null, ref: > Courses._id]
+  title varchar [not null]
+  description text
+  order_index int [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (course_id, order_index) [unique, note: 'Ordem única dentro do curso']
+  }
+}
+
+Table Contents {
+  _id objectid [pk]
+  module_id objectid [not null, ref: > Modules._id]
+  title varchar [not null]
+  type varchar [not null, note: 'Video, Text, Pdf, Quiz ou Assignment']
+  order_index int [not null]
+  is_free_preview boolean [not null, default: false]
+  duration_seconds int
+  video_url varchar
+  body text
+  file_url varchar
+  file_size_bytes bigint
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (module_id, order_index) [unique, note: 'Ordem única dentro do módulo']
+  }
+}
+
+Table Quizzes {
+  _id objectid [pk]
+  content_id objectid [not null, unique, ref: > Contents._id, note: 'Content.type deve ser Quiz']
+  time_limit_minutes int
+  passing_score_percentage decimal [not null, default: 60]
+  attempts_allowed int [not null, default: 1]
+  shuffle_questions boolean [not null, default: false]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table Questions {
+  _id objectid [pk]
+  quiz_id objectid [not null, ref: > Quizzes._id]
+  type varchar [not null]
+  question_text text [not null]
+  points decimal [not null, default: 1]
+  order_index int [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (quiz_id, order_index) [unique, note: 'Ordem única dentro do quiz']
+  }
+}
+
+Table QuestionOptions {
+  _id objectid [pk]
+  question_id objectid [not null, ref: > Questions._id]
+  option_text text [not null]
+  is_correct boolean [not null, default: false]
+  created_at timestamp [not null]
+
+  indexes {
+    (question_id, option_text) [unique, note: 'Texto único dentro da questão']
+  }
+}
+
+Table Enrollments {
+  _id objectid [pk]
+  user_id objectid [not null, ref: > Users._id]
+  course_id objectid [not null, ref: > Courses._id]
+  status varchar [not null, default: 'Active']
+  progress_percentage decimal [not null, default: 0]
+  enrolled_at timestamp [not null]
+  expires_at timestamp
+  last_accessed_at timestamp
+
+  indexes {
+    (user_id, course_id) [unique, note: 'Uma matrícula por usuário e curso']
+  }
+}
+
+Table UserAnswers {
+  _id objectid [pk]
+  attempt_id objectid [not null, note: 'Referência lógica; entidade Attempt ainda não existe']
+  question_id objectid [not null, ref: > Questions._id]
+  selected_option_id objectid [ref: > QuestionOptions._id]
+  selected_option_ids json [note: 'Array de IDs para questões com múltiplas opções']
+  text_response text
+  is_correct boolean
+  points_earned decimal [not null, default: 0]
+  created_at timestamp [not null]
+
+  indexes {
+    (attempt_id, question_id) [unique, note: 'Uma resposta por questão em cada tentativa']
+  }
+}
+
+Table AssignmentSubmissions {
+  _id objectid [pk]
+  content_id objectid [not null, ref: > Contents._id, note: 'Content.type deve ser Assignment']
+  user_id objectid [not null, ref: > Users._id]
+  enrollment_id objectid [not null, ref: > Enrollments._id]
+  file_url varchar [not null]
+  submitted_at timestamp [not null]
+  grade decimal
+  instructor_feedback text
+  graded_at timestamp
+
+  indexes {
+    (enrollment_id, content_id) [unique, note: 'Uma submissão por matrícula e atividade']
+  }
+}
+
+Table Comments {
+  _id objectid [pk]
+  type varchar [not null, note: 'Course ou Chat']
+  content text
+  author_id objectid [not null, ref: > Users._id]
+  course_id objectid [ref: > Courses._id]
+  recipient_ids json [not null, note: 'Array de IDs de usuários destinatários']
+  parent_id objectid [ref: > Comments._id]
+  attachments json [note: 'Array de {url, public_id, file_name, file_type, file_size}']
+  reactions json [note: 'Array de {user_id, emoji, created_at}']
+  archived_by json [note: 'Array de IDs de usuários que arquivaram']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+

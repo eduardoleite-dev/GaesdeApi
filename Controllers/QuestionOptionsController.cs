@@ -18,10 +18,16 @@ public class QuestionOptionsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? questionId = null)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? questionId = null, [FromQuery] bool? isCorrect = null)
     {
-        return Ok(await _questionOptionService.GetAllAsync(questionId));
+        var options = await _questionOptionService.GetAllAsync(questionId);
+        if (isCorrect.HasValue)
+            options = options.Where(option => option.IsCorrect == isCorrect.Value).ToArray();
+        return Ok(Utils.Paginate(options, pagination));
     }
+
+    [NonAction]
+    public Task<IActionResult> GetAll(string? questionId) => GetAll(new PaginationRequest(), questionId);
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

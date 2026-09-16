@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using GaesdeApi.DTOs;
+using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
 
 namespace GaesdeApi.Controllers;
@@ -18,9 +20,28 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? search = null, [FromQuery] AccessLevel? accessLevel = null)
     {
-        return Ok(await _userService.GetAllAsync());
+        var users = await _userService.GetAllAsync();
+        if (!string.IsNullOrWhiteSpace(search))
+            users = users.Where(user => user.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || user.Email.Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (accessLevel.HasValue)
+            users = users.Where(user => user.AccessLevel == accessLevel.Value).ToArray();
+        return Ok(Utils.Paginate(users, pagination));
+    }
+
+    [NonAction]
+    public Task<IActionResult> GetAll() => GetAll(new PaginationRequest());
+
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMe()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null)
+            return Unauthorized();
+
+        var user = await _userService.GetByIdAsync(userId);
+        return user is null ? NotFound() : Ok(user);
     }
 
     [HttpGet("{id}")]

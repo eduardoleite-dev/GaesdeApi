@@ -1,4 +1,5 @@
 using GaesdeApi.DTOs;
+using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,10 +19,18 @@ public class ContentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? moduleId = null)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? moduleId = null, [FromQuery] ContentType? type = null, [FromQuery] bool? freePreview = null)
     {
-        return Ok(await _contentService.GetAllAsync(moduleId));
+        var contents = await _contentService.GetAllAsync(moduleId);
+        if (type.HasValue)
+            contents = contents.Where(content => content.Type == type.Value).ToArray();
+        if (freePreview.HasValue)
+            contents = contents.Where(content => content.IsFreePreview == freePreview.Value).ToArray();
+        return Ok(Utils.Paginate(contents, pagination));
     }
+
+    [NonAction]
+    public Task<IActionResult> GetAll(string? moduleId) => GetAll(new PaginationRequest(), moduleId);
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

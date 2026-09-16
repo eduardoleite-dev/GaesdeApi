@@ -20,6 +20,7 @@ public static class DependencyInjectionConfig
         services.AddScoped<IQuizService, QuizService>();
         services.AddScoped<IUserAnswerService, UserAnswerService>();
         services.AddScoped<ICommentService, CommentService>();
+        services.AddScoped<IAssignmentSubmissionService, AssignmentSubmissionService>();
         return services;
     }
 }

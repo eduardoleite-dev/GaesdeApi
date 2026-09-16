@@ -19,10 +19,16 @@ public class ModulesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? courseId = null)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? courseId = null, [FromQuery] string? search = null)
     {
-        return Ok(await _moduleService.GetAllAsync(courseId));
+        var modules = await _moduleService.GetAllAsync(courseId);
+        if (!string.IsNullOrWhiteSpace(search))
+            modules = modules.Where(module => module.Title.Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
+        return Ok(Utils.Paginate(modules, pagination));
     }
+
+    [NonAction]
+    public Task<IActionResult> GetAll(string? courseId) => GetAll(new PaginationRequest(), courseId);
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

@@ -20,8 +20,10 @@ public class CoursesControllerTests
     {
         var service = new Mock<ICourseService>();
         service.Setup(value => value.GetAllAsync()).ReturnsAsync(new[] { Response() });
+        var controller = new CoursesController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
 
-        var result = await new CoursesController(service.Object).GetAll();
+        var result = await controller.GetAll();
 
         Assert.IsType<OkObjectResult>(result);
     }
@@ -31,8 +33,10 @@ public class CoursesControllerTests
     {
         var service = new Mock<ICourseService>();
         service.Setup(value => value.GetByIdAsync("missing")).ReturnsAsync((CourseResponseDto?)null);
+        var controller = new CoursesController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
 
-        var result = await new CoursesController(service.Object).GetById("missing");
+        var result = await controller.GetById("missing");
 
         Assert.IsType<NotFoundResult>(result);
     }

@@ -20,12 +20,34 @@ public class EnrollmentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] EnrollmentStatus? status = null, [FromQuery] string? courseId = null)
     {
         var userId = GetUserId();
-        return userId is null
-            ? Unauthorized()
-            : Ok(await _enrollmentService.GetAllAsync(userId, IsAdministrator()));
+        if (userId is null)
+            return Unauthorized();
+        var enrollments = await _enrollmentService.GetAllAsync(userId, IsAdministrator());
+        if (status.HasValue)
+            enrollments = enrollments.Where(enrollment => enrollment.Status == status.Value).ToArray();
+        if (!string.IsNullOrWhiteSpace(courseId))
+            enrollments = enrollments.Where(enrollment => enrollment.CourseId == courseId).ToArray();
+        return Ok(Utils.Paginate(enrollments, pagination));
+    }
+
+    [NonAction]
+    public Task<IActionResult> GetAll() => GetAll(new PaginationRequest());
+
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMine([FromQuery] PaginationRequest pagination, [FromQuery] EnrollmentStatus? status = null, [FromQuery] string? courseId = null)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var enrollments = await _enrollmentService.GetAllAsync(userId, false);
+        if (status.HasValue)
+            enrollments = enrollments.Where(enrollment => enrollment.Status == status.Value).ToArray();
+        if (!string.IsNullOrWhiteSpace(courseId))
+            enrollments = enrollments.Where(enrollment => enrollment.CourseId == courseId).ToArray();
+        return Ok(Utils.Paginate(enrollments, pagination));
     }
 
     [HttpGet("{id}")]

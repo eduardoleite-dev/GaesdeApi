@@ -72,6 +72,12 @@ public static class Messages
         public const string CreateConflict = "Comentário inválido, destinatários ou curso inválidos.";
     }
 
+    public static class AssignmentSubmissions
+    {
+        public const string CreateConflict = "Submissão inválida, atividade ou matrícula incompatível, ou submissão já existente.";
+        public const string GradeNotFound = "Submissão não encontrada, já avaliada ou professor sem permissão.";
+    }
+
     public static class Hello
     {
         public const string Public = "Hello World";

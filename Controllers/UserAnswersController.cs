@@ -18,10 +18,18 @@ public class UserAnswersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? attemptId = null)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? attemptId = null, [FromQuery] string? questionId = null, [FromQuery] bool? isCorrect = null)
     {
-        return Ok(await _userAnswerService.GetAllAsync(attemptId));
+        var answers = await _userAnswerService.GetAllAsync(attemptId);
+        if (!string.IsNullOrWhiteSpace(questionId))
+            answers = answers.Where(answer => answer.QuestionId == questionId).ToArray();
+        if (isCorrect.HasValue)
+            answers = answers.Where(answer => answer.IsCorrect == isCorrect.Value).ToArray();
+        return Ok(Utils.Paginate(answers, pagination));
     }
+
+    [NonAction]
+    public Task<IActionResult> GetAll(string? attemptId) => GetAll(new PaginationRequest(), attemptId);
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

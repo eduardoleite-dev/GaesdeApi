@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GaesdeApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d4df1d2f17e39785bba8b900d517c2bfa554b15e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b6bb8b9e3bbbd56945c4a077b9932187a3fddc49")]
 [assembly: System.Reflection.AssemblyProductAttribute("GaesdeApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GaesdeApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

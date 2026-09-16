@@ -18,10 +18,16 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? search = null)
     {
-        return Ok(await _categoryService.GetAllAsync());
+        var categories = await _categoryService.GetAllAsync();
+        if (!string.IsNullOrWhiteSpace(search))
+            categories = categories.Where(category => category.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
+        return Ok(Utils.Paginate(categories, pagination));
     }
+
+    [NonAction]
+    public Task<IActionResult> GetAll() => GetAll(new PaginationRequest());
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)

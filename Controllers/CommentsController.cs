@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using GaesdeApi.DTOs;
+using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,11 +20,22 @@ public class CommentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? courseId = null)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? courseId = null, [FromQuery] CommentType? type = null)
     {
         var userId = GetUserId();
-        return userId is null ? Unauthorized() : Ok(await _commentService.GetAllAsync(userId, IsAdministrator(), courseId));
+        if (userId is null)
+            return Unauthorized();
+        var comments = await _commentService.GetAllAsync(userId, IsAdministrator(), courseId);
+        if (type.HasValue)
+            comments = comments.Where(comment => comment.Type == type.Value).ToArray();
+        return Ok(Utils.Paginate(comments, pagination));
     }
+
+    [NonAction]
+    public Task<IActionResult> GetAll() => GetAll(new PaginationRequest());
+
+    [NonAction]
+    public Task<IActionResult> GetAll(string? courseId) => GetAll(new PaginationRequest(), courseId);
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
