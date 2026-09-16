@@ -85,4 +85,56 @@ public class ServiceValidationTests
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task QuizService_WithInvalidPassingScore_ReturnsNull()
+    {
+        var service = new QuizService(new Mock<IMongoDatabase>().Object);
+
+        var result = await service.CreateAsync(new CreateQuizRequestDto("content-id", 101));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task QuestionOptionService_WithBlankOptionText_ReturnsNull()
+    {
+        var service = new QuestionOptionService(new Mock<IMongoDatabase>().Object);
+
+        var result = await service.CreateAsync(new CreateQuestionOptionRequestDto("question-id", " "));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UserAnswerService_WithBlankAttemptId_ReturnsNull()
+    {
+        var service = new UserAnswerService(new Mock<IMongoDatabase>().Object);
+
+        var result = await service.CreateAsync(new CreateUserAnswerRequestDto("", "question-id"));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task CommentService_WithoutRecipients_ReturnsNull()
+    {
+        var service = new CommentService(new Mock<IMongoDatabase>().Object);
+
+        var result = await service.CreateAsync(
+            "author-id",
+            new CreateCommentRequestDto(CommentType.Chat, "Message", Array.Empty<string>()));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void MongoTestService_WhenDatabaseClientIsUnavailable_ReturnsFailureMessage()
+    {
+        var service = new MongoTestService(new Mock<IMongoDatabase>().Object);
+
+        var result = service.TestConnection();
+
+        Assert.StartsWith("Falha na conexão com MongoDB:", result);
+    }
 }
