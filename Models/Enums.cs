@@ -54,3 +54,10 @@ public enum QuestionType
     Essay,
     Matching
 }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CommentType
+{
+    Course,
+    Chat
+}

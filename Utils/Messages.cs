@@ -49,6 +49,29 @@ public static class Messages
         public const string UpdateNotFound = "Módulo não encontrado ou dados inválidos.";
     }
 
+    public static class QuestionOptions
+    {
+        public const string CreateConflict = "Opção inválida, questão incompatível ou texto já utilizado.";
+        public const string UpdateNotFound = "Opção não encontrada ou texto inválido.";
+    }
+
+    public static class Quizzes
+    {
+        public const string CreateConflict = "Quiz inválido, conteúdo incompatível ou quiz já cadastrado.";
+        public const string UpdateNotFound = "Quiz não encontrado ou dados inválidos.";
+    }
+
+    public static class UserAnswers
+    {
+        public const string CreateConflict = "Resposta inválida, questão ou opção inexistente, ou resposta já cadastrada.";
+        public const string UpdateNotFound = "Resposta não encontrada ou dados inválidos.";
+    }
+
+    public static class Comments
+    {
+        public const string CreateConflict = "Comentário inválido, destinatários ou curso inválidos.";
+    }
+
     public static class Hello
     {
         public const string Public = "Hello World";

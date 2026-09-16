@@ -8,12 +8,12 @@ namespace GaesdeApi.Services;
 public class QuestionService : IQuestionService
 {
     private readonly IMongoCollection<Question> _questionsCollection;
-    private readonly IMongoCollection<Content> _contentsCollection;
+    private readonly IMongoCollection<Quiz> _quizzesCollection;
 
     public QuestionService(IMongoDatabase database)
     {
         _questionsCollection = database.GetCollection<Question>("Questions");
-        _contentsCollection = database.GetCollection<Content>("Contents");
+        _quizzesCollection = database.GetCollection<Quiz>("Quizzes");
     }
 
     public async Task<IReadOnlyCollection<QuestionResponseDto>> GetAllAsync(string? quizId = null)
@@ -92,8 +92,7 @@ public class QuestionService : IQuestionService
 
     private async Task<bool> IsQuizAsync(string quizId)
     {
-        return await _contentsCollection.Find(content =>
-                content.Id == quizId && content.Type == ContentType.Quiz)
+        return await _quizzesCollection.Find(quiz => quiz.Id == quizId)
             .Limit(1)
             .AnyAsync();
     }

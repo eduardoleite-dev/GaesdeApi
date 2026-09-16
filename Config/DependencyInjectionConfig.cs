@@ -16,6 +16,10 @@ public static class DependencyInjectionConfig
         services.AddScoped<IContentService, ContentService>();
         services.AddScoped<IQuestionService, QuestionService>();
         services.AddScoped<IModuleService, ModuleService>();
+        services.AddScoped<IQuestionOptionService, QuestionOptionService>();
+        services.AddScoped<IQuizService, QuizService>();
+        services.AddScoped<IUserAnswerService, UserAnswerService>();
+        services.AddScoped<ICommentService, CommentService>();
         return services;
     }
 }
