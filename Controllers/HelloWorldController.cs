@@ -18,7 +18,7 @@ public class HelloWorldController : ControllerBase
     [HttpGet("publico")]
     public IActionResult GetPublic()
     {
-        return Ok(new { message = "Hello World" });
+        return Ok(new { message = Messages.Hello.Public });
     }
 
     [Authorize]
@@ -27,8 +27,36 @@ public class HelloWorldController : ControllerBase
     {
         var dbStatus = _mongoTestService.TestConnection();
         return Ok(new { 
-            message = "Hello World Autenticado!",
+            message = Messages.Hello.Private,
             mongoStatus = dbStatus
         });
+    }
+
+    [Authorize]
+    [HttpGet("administrador")]
+    public IActionResult GetAdministrator()
+    {
+        return Utils.CheckAccessLevel(User, this, 0, Messages.Hello.Administrator);
+    }
+
+    [Authorize]
+    [HttpGet("professor")]
+    public IActionResult GetProfessor()
+    {
+        return Utils.CheckAccessLevel(User, this, 2, Messages.Hello.Professor);
+    }
+
+    [Authorize]
+    [HttpGet("aluno")]
+    public IActionResult GetStudent()
+    {
+        return Utils.CheckAccessLevel(User, this, 3, Messages.Hello.Student);
+    }
+
+    [Authorize]
+    [HttpGet("vendedor")]
+    public IActionResult GetSeller()
+    {
+        return Utils.CheckAccessLevel(User, this, 4, Messages.Hello.Seller);
     }
 }

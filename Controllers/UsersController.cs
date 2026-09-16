@@ -34,8 +34,9 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Create(CreateUserRequestDto request)
     {
         var user = await _userService.CreateAsync(request);
+        
         return user is null
-            ? Conflict(new { message = "E-mail já cadastrado ou nível de acesso inválido." })
+            ? Conflict(new { message = Messages.Users.CreateConflict })
             : CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
     }
 
@@ -43,8 +44,9 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Update(string id, UpdateUserRequestDto request)
     {
         var user = await _userService.UpdateAsync(id, request);
+
         return user is null
-            ? NotFound(new { message = "Usuário não encontrado, e-mail já cadastrado ou nível de acesso inválido." })
+            ? NotFound(new { message = Messages.Users.UpdateNotFound })
             : Ok(user);
     }
 
