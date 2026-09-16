@@ -1,4 +1,5 @@
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\.msCoverageSourceRootsMapping_GaesdeApi.Tests
+C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\CoverletSourceRootsMapping_GaesdeApi.Tests
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\testhost.dll
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\GaesdeApi.deps.json
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\GaesdeApi.runtimeconfig.json

@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "cAuK9AwoanU=",
+  "dgSpecHash": "Xmq5suPKbTk=",
   "success": true,
   "projectFilePath": "C:\\Users\\eduardo.leite\\Documents\\Estudo\\Github\\GaesdeApi\\GaesdeApi\\Test\\GaesdeApi.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\eduardo.leite\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
     "C:\\Users\\eduardo.leite\\.nuget\\packages\\castle.core\\5.1.1\\castle.core.5.1.1.nupkg.sha512",
+    "C:\\Users\\eduardo.leite\\.nuget\\packages\\coverlet.collector\\6.0.4\\coverlet.collector.6.0.4.nupkg.sha512",
     "C:\\Users\\eduardo.leite\\.nuget\\packages\\dnsclient\\1.6.1\\dnsclient.1.6.1.nupkg.sha512",
     "C:\\Users\\eduardo.leite\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\10.0.11\\microsoft.aspnetcore.authentication.jwtbearer.10.0.11.nupkg.sha512",
     "C:\\Users\\eduardo.leite\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.9\\microsoft.aspnetcore.openapi.10.0.9.nupkg.sha512",
