@@ -41,6 +41,7 @@ C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.csproj.CoreCompileInputs.cache
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.sourcelink.json
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\rjimswa.dswa.cache.json
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
@@ -56,4 +57,3 @@ C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.pdb
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.genruntimeconfig.cache
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\ref\GaesdeApi.dll
-C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.sourcelink.json

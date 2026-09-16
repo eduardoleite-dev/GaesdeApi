@@ -26,9 +26,11 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponseDto?> AuthenticateAsync(string username, string password)
     {
-        if (username == DefaultAdminUsername && password == DefaultAdminPassword)
+        if (username == DefaultAdminUsername)
         {
-            return GenerateJwtToken(DefaultAdminUsername, DefaultAdminId, AccessLevel.Administrador);
+            return password == DefaultAdminPassword
+                ? GenerateJwtToken(DefaultAdminUsername, DefaultAdminId, AccessLevel.Administrador)
+                : null;
         }
 
         var user = await _usersCollection

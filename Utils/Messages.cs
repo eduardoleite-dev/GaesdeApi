@@ -13,6 +13,12 @@ public static class Messages
         public const string UpdateNotFound = "Usuário não encontrado, e-mail já cadastrado ou nível de acesso inválido.";
     }
 
+    public static class Categories
+    {
+        public const string CreateConflict = "Nome já cadastrado ou inválido.";
+        public const string UpdateNotFound = "Categoria não encontrada ou nome já cadastrado.";
+    }
+
     public static class Hello
     {
         public const string Public = "Hello World";
