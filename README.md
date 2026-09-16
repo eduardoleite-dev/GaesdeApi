@@ -21,8 +21,6 @@ API REST para uma plataforma educacional. O sistema gerencia usuários, cursos, 
 
 ## Configuração
 
-Não mantenha credenciais reais versionadas. Configure os valores por variáveis de ambiente ou Secret Manager.
-
 Variáveis esperadas:
 
 ```text
