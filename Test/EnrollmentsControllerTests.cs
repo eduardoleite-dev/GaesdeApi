@@ -81,4 +81,18 @@ public class EnrollmentsControllerTests
 
         Assert.IsType<OkObjectResult>(result);
     }
+
+    [Fact]
+    public async Task GetMine_UsesTokenUserIdAndPaginates()
+    {
+        var service = new Mock<IEnrollmentService>();
+        service.Setup(value => value.GetAllAsync("student-id", false)).ReturnsAsync(new[] { Response() });
+        var controller = new EnrollmentsController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
+
+        var result = await controller.GetMine(new PaginationRequest { Page = 1, PageSize = 5 });
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.GetAllAsync("student-id", false), Times.Once);
+    }
 }

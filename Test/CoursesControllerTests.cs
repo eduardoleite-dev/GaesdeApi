@@ -89,4 +89,49 @@ public class CoursesControllerTests
 
         Assert.IsType<NoContentResult>(result);
     }
+
+    [Fact]
+    public async Task GetMine_WithProfessorIdentity_UsesProfessorScope()
+    {
+        var service = new Mock<ICourseService>();
+        service.Setup(value => value.GetVisibleAsync("teacher-id", AccessLevel.Professor))
+            .ReturnsAsync(new[] { Response() });
+        var controller = new CoursesController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "teacher-id", "Professor");
+
+        var result = await controller.GetMine(new PaginationRequest { Page = 1, PageSize = 10 });
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.GetVisibleAsync("teacher-id", AccessLevel.Professor), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetCatalog_UsesPublishedCatalogScope()
+    {
+        var service = new Mock<ICourseService>();
+        service.Setup(value => value.GetVisibleAsync("student-id", AccessLevel.Aluno))
+            .ReturnsAsync(new[] { Response() });
+        var controller = new CoursesController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
+
+        var result = await controller.GetCatalog(new PaginationRequest(), CourseLevel.Beginner, "Course");
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.GetVisibleAsync("student-id", AccessLevel.Aluno), Times.Once);
+    }
+
+    [Fact]
+    public async Task SubmitForReview_UsesTokenInstructorId()
+    {
+        var service = new Mock<ICourseService>();
+        service.Setup(value => value.SubmitForReviewAsync("course-id", "teacher-id"))
+            .ReturnsAsync(Response());
+        var controller = new CoursesController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "teacher-id", "Professor");
+
+        var result = await controller.SubmitForReview("course-id");
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.SubmitForReviewAsync("course-id", "teacher-id"), Times.Once);
+    }
 }
