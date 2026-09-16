@@ -33,6 +33,17 @@
           }
         }
       },
+      "CloudinaryDotNet/1.27.8": {
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3"
+        },
+        "runtime": {
+          "lib/netstandard2.0/CloudinaryDotNet.dll": {
+            "assemblyVersion": "1.27.8.0",
+            "fileVersion": "1.27.8.0"
+          }
+        }
+      },
       "DnsClient/1.6.1": {
         "runtime": {
           "lib/net5.0/DnsClient.dll": {
@@ -569,6 +580,7 @@
       "GaesdeApi/1.0.0": {
         "dependencies": {
           "BCrypt.Net-Next": "4.2.0",
+          "CloudinaryDotNet": "1.27.8",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "10.0.11",
           "Microsoft.AspNetCore.OpenApi": "10.0.9",
           "MongoDB.Driver": "3.11.0",
@@ -602,6 +614,13 @@
       "sha512": "sha512-rpYtIczkzGpf+EkZgDr9CClTdemhsrwA/W5hMoPjLkRFnXzH44zDLoovXeKtmxb1ykXK9aJVODSpiJml8CTw2g==",
       "path": "castle.core/5.1.1",
       "hashPath": "castle.core.5.1.1.nupkg.sha512"
+    },
+    "CloudinaryDotNet/1.27.8": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-K2PPU5SLn0SJ+62OOC5Wr3pCuk1ezLnKmgY/6A53bM6Ysvr27utKMZ8NTvJOG3eU1G8vykNQyhOKO4/shXDl1Q==",
+      "path": "cloudinarydotnet/1.27.8",
+      "hashPath": "cloudinarydotnet.1.27.8.nupkg.sha512"
     },
     "DnsClient/1.6.1": {
       "type": "package",

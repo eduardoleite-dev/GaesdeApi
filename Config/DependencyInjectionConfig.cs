@@ -21,6 +21,7 @@ public static class DependencyInjectionConfig
         services.AddScoped<IUserAnswerService, UserAnswerService>();
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<IAssignmentSubmissionService, AssignmentSubmissionService>();
+        services.AddScoped<ICloudinaryService, CloudinaryService>();
         return services;
     }
 }

@@ -23,6 +23,7 @@ C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debu
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\GaesdeApi.Tests.pdb
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\BCrypt-Net-Next.dll
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\Castle.Core.dll
+C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\CloudinaryDotNet.dll
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\DnsClient.dll
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\Test\bin\Debug\net10.0\Microsoft.AspNetCore.OpenApi.dll
