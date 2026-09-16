@@ -56,3 +56,4 @@ C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.pdb
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.genruntimeconfig.cache
 C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\ref\GaesdeApi.dll
+C:\Users\eduardo.leite\Documents\Estudo\Github\GaesdeApi\GaesdeApi\obj\Debug\net10.0\GaesdeApi.sourcelink.json

@@ -11,6 +11,10 @@ namespace GaesdeApi.Services;
 
 public class AuthService : IAuthService
 {
+    private const string DefaultAdminUsername = "usuarioMaster";
+    private const string DefaultAdminPassword = "62270208";
+    private const string DefaultAdminId = "Master";
+
     private readonly IConfiguration _configuration;
     private readonly IMongoCollection<User> _usersCollection;
 
@@ -22,12 +26,14 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponseDto?> AuthenticateAsync(string username, string password)
     {
-        if (username == "usuarioMaster" && password == "62270208")
+        if (username == DefaultAdminUsername && password == DefaultAdminPassword)
         {
-            return GenerateJwtToken("usuarioMaster", "Master");
+            return GenerateJwtToken(DefaultAdminUsername, DefaultAdminId, AccessLevel.Administrador);
         }
 
-        var user = await _usersCollection.Find(u => u.Email == username || u.Name == username).FirstOrDefaultAsync();
+        var user = await _usersCollection
+            .Find(u => (u.Email == username || u.Name == username) && u.DeletedAt == null)
+            .FirstOrDefaultAsync();
         
         if (user == null) return null; 
 
@@ -37,10 +43,10 @@ public class AuthService : IAuthService
         var update = Builders<User>.Update.Set(u => u.LastLoginAt, DateTime.UtcNow);
         await _usersCollection.UpdateOneAsync(u => u.Id == user.Id, update);
 
-        return GenerateJwtToken(user.Name, user.Id);
+        return GenerateJwtToken(user.Name, user.Id, user.AccessLevel);
     }
 
-    private LoginResponseDto GenerateJwtToken(string username, string userId)
+    private LoginResponseDto GenerateJwtToken(string username, string userId, AccessLevel accessLevel)
     {
         var secretKey = _configuration["JwtSettings__SecretKey"] 
                         ?? _configuration["JwtSettings:SecretKey"] 
@@ -56,7 +62,9 @@ public class AuthService : IAuthService
             Subject = new ClaimsIdentity(new[] 
             { 
                 new Claim(ClaimTypes.Name, username),
-                new Claim(ClaimTypes.NameIdentifier, userId)
+                new Claim(ClaimTypes.NameIdentifier, userId),
+                new Claim("nivel_acesso", ((int)accessLevel).ToString()),
+                new Claim(ClaimTypes.Role, accessLevel.ToString())
             }),
             Expires = expiresAt,
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)

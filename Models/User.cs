@@ -18,6 +18,15 @@ public class User
     [BsonElement("password_hash")]
     public string PasswordHash { get; set; } = string.Empty;
 
+    [BsonElement("avatar_url")]
+    public string? AvatarUrl { get; set; }
+
+    [BsonElement("bio")]
+    public string? Bio { get; set; }
+
+    [BsonElement("email_verified_at")]
+    public DateTime? EmailVerifiedAt { get; set; }
+
     [BsonElement("last_login_at")]
     public DateTime? LastLoginAt { get; set; }
 
@@ -25,8 +34,11 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     [BsonElement("updated_at")]
-    public DateTime? UpdatedAt { get; set; }
-    
-    [BsonElement("level_access")]
-    public int LevelAccess { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [BsonElement("deleted_at")]
+    public DateTime? DeletedAt { get; set; }
+
+    [BsonElement("access_level")]
+    public AccessLevel AccessLevel { get; set; } = AccessLevel.Aluno;
 }
