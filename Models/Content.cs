@@ -15,6 +15,9 @@ public class Content
     [BsonElement("title")]
     public string Title { get; set; } = string.Empty;
 
+    [BsonElement("photo_url")]
+    public string? PhotoUrl { get; set; }
+
     [BsonElement("type")]
     [BsonRepresentation(BsonType.String)]
     public ContentType Type { get; set; }

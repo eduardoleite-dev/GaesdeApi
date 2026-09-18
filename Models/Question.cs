@@ -19,6 +19,9 @@ public class Question
     [BsonElement("question_text")]
     public string QuestionText { get; set; } = string.Empty;
 
+    [BsonElement("photo_url")]
+    public string? PhotoUrl { get; set; }
+
     [BsonElement("points")]
     public decimal Points { get; set; } = 1;
 

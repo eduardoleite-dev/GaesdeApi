@@ -1,5 +1,6 @@
 using GaesdeApi.DTOs;
 using GaesdeApi.Models;
+using GaesdeApi.Services;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +13,12 @@ namespace GaesdeApi.Controllers;
 public class ContentsController : ControllerBase
 {
     private readonly IContentService _contentService;
+    private readonly ICloudinaryService _cloudinaryService;
 
-    public ContentsController(IContentService contentService)
+    public ContentsController(IContentService contentService, ICloudinaryService cloudinaryService)
     {
         _contentService = contentService;
+        _cloudinaryService = cloudinaryService;
     }
 
     [HttpGet]
@@ -57,6 +60,48 @@ public class ContentsController : ControllerBase
         return content is null
             ? NotFound(new { message = Messages.Contents.UpdateNotFound })
             : Ok(content);
+    }
+
+    [HttpGet("{id}/photo")]
+    public async Task<IActionResult> GetPhoto(string id)
+    {
+        var content = await _contentService.GetByIdAsync(id);
+        return content is null || string.IsNullOrWhiteSpace(content.PhotoUrl)
+            ? NotFound()
+            : Ok(new { url = content.PhotoUrl });
+    }
+
+    [HttpPost("{id}/photo")]
+    [Authorize(Roles = "Professor,Administrador")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public Task<IActionResult> UploadPhoto(string id, [FromForm] UploadMediaRequestDto request) => SavePhoto(id, request);
+
+    [HttpPut("{id}/photo")]
+    [Authorize(Roles = "Professor,Administrador")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public Task<IActionResult> UpdatePhoto(string id, [FromForm] UploadMediaRequestDto request) => SavePhoto(id, request);
+
+    private async Task<IActionResult> SavePhoto(string id, UploadMediaRequestDto request)
+    {
+        var content = await _contentService.GetByIdAsync(id);
+        if (content is null)
+            return NotFound();
+
+        try
+        {
+            var publicId = CloudinaryService.CreatePublicId("conteudo", content.Title, content.Id);
+            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/contents");
+            var updatedContent = await _contentService.UpdatePhotoAsync(id, result.Url);
+            return updatedContent is null ? NotFound() : Ok(updatedContent);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = exception.Message });
+        }
     }
 
     [HttpDelete("{id}")]

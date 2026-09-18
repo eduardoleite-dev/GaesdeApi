@@ -98,6 +98,21 @@ public class ContentService : IContentService
         return ToResponse(content);
     }
 
+    public async Task<ContentResponseDto?> UpdatePhotoAsync(string id, string photoUrl)
+    {
+        var content = await _contentsCollection
+            .Find(existingContent => existingContent.Id == id)
+            .FirstOrDefaultAsync();
+
+        if (content is null)
+            return null;
+
+        content.PhotoUrl = photoUrl;
+        content.UpdatedAt = DateTime.UtcNow;
+        await _contentsCollection.ReplaceOneAsync(existingContent => existingContent.Id == id, content);
+        return ToResponse(content);
+    }
+
     public async Task<bool> DeleteAsync(string id)
     {
         var result = await _contentsCollection.DeleteOneAsync(content => content.Id == id);
@@ -154,6 +169,7 @@ public class ContentService : IContentService
         content.Id,
         content.ModuleId,
         content.Title,
+        content.PhotoUrl,
         content.Type,
         content.OrderIndex,
         content.IsFreePreview,

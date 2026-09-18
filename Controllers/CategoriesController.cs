@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GaesdeApi.DTOs;
+using GaesdeApi.Services;
 using GaesdeApi.Services.Interfaces;
 
 namespace GaesdeApi.Controllers;
@@ -11,10 +12,12 @@ namespace GaesdeApi.Controllers;
 public class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
+    private readonly ICloudinaryService _cloudinaryService;
 
-    public CategoriesController(ICategoryService categoryService)
+    public CategoriesController(ICategoryService categoryService, ICloudinaryService cloudinaryService)
     {
         _categoryService = categoryService;
+        _cloudinaryService = cloudinaryService;
     }
 
     [HttpGet]
@@ -36,6 +39,15 @@ public class CategoriesController : ControllerBase
         return category is null ? NotFound() : Ok(category);
     }
 
+    [HttpGet("{id}/photo")]
+    public async Task<IActionResult> GetPhoto(string id)
+    {
+        var category = await _categoryService.GetByIdAsync(id);
+        return category is null || string.IsNullOrWhiteSpace(category.ImageUrl)
+            ? NotFound()
+            : Ok(new { url = category.ImageUrl });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateCategoryRequestDto request)
     {
@@ -52,6 +64,58 @@ public class CategoriesController : ControllerBase
         return category is null
             ? NotFound(new { message = Messages.Categories.UpdateNotFound })
             : Ok(category);
+    }
+
+    [HttpPost("{id}/photo")]
+    [Authorize(Roles = "Administrador")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<IActionResult> UploadPhoto(string id, [FromForm] UploadMediaRequestDto request)
+    {
+        var category = await _categoryService.GetByIdAsync(id);
+        if (category is null)
+            return NotFound();
+
+        try
+        {
+            var publicId = CloudinaryService.CreatePublicId("categoria", category.Name, category.Id);
+            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/categories");
+            var updatedCategory = await _categoryService.UpdateImageAsync(id, result.Url);
+            return Ok(updatedCategory);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = exception.Message });
+        }
+    }
+
+    [HttpPut("{id}/photo")]
+    [Authorize(Roles = "Administrador")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<IActionResult> UpdatePhoto(string id, [FromForm] UploadMediaRequestDto request)
+    {
+        var category = await _categoryService.GetByIdAsync(id);
+        if (category is null)
+            return NotFound();
+
+        try
+        {
+            var publicId = CloudinaryService.CreatePublicId("categoria", category.Name, category.Id);
+            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/categories");
+            var updatedCategory = await _categoryService.UpdateImageAsync(id, result.Url);
+            return Ok(updatedCategory);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = exception.Message });
+        }
     }
 
     [HttpDelete("{id}")]

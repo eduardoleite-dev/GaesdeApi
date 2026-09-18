@@ -1,5 +1,6 @@
 using GaesdeApi.DTOs;
 using GaesdeApi.Models;
+using GaesdeApi.Services;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +13,12 @@ namespace GaesdeApi.Controllers;
 public class QuestionsController : ControllerBase
 {
     private readonly IQuestionService _questionService;
+    private readonly ICloudinaryService _cloudinaryService;
 
-    public QuestionsController(IQuestionService questionService)
+    public QuestionsController(IQuestionService questionService, ICloudinaryService cloudinaryService)
     {
         _questionService = questionService;
+        _cloudinaryService = cloudinaryService;
     }
 
     [HttpGet]
@@ -55,6 +58,48 @@ public class QuestionsController : ControllerBase
         return question is null
             ? NotFound(new { message = Messages.Questions.UpdateNotFound })
             : Ok(question);
+    }
+
+    [HttpGet("{id}/photo")]
+    public async Task<IActionResult> GetPhoto(string id)
+    {
+        var question = await _questionService.GetByIdAsync(id);
+        return question is null || string.IsNullOrWhiteSpace(question.PhotoUrl)
+            ? NotFound()
+            : Ok(new { url = question.PhotoUrl });
+    }
+
+    [HttpPost("{id}/photo")]
+    [Authorize(Roles = "Professor,Administrador")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public Task<IActionResult> UploadPhoto(string id, [FromForm] UploadMediaRequestDto request) => SavePhoto(id, request);
+
+    [HttpPut("{id}/photo")]
+    [Authorize(Roles = "Professor,Administrador")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public Task<IActionResult> UpdatePhoto(string id, [FromForm] UploadMediaRequestDto request) => SavePhoto(id, request);
+
+    private async Task<IActionResult> SavePhoto(string id, UploadMediaRequestDto request)
+    {
+        var question = await _questionService.GetByIdAsync(id);
+        if (question is null)
+            return NotFound();
+
+        try
+        {
+            var publicId = CloudinaryService.CreatePublicId("questao", question.QuestionText, question.Id);
+            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/questions");
+            var updatedQuestion = await _questionService.UpdatePhotoAsync(id, result.Url);
+            return updatedQuestion is null ? NotFound() : Ok(updatedQuestion);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = exception.Message });
+        }
     }
 
     [HttpDelete("{id}")]

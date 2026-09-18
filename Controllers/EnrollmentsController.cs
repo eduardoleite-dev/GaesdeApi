@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using GaesdeApi.DTOs;
 using GaesdeApi.Models;
+using GaesdeApi.Services;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,10 +14,12 @@ namespace GaesdeApi.Controllers;
 public class EnrollmentsController : ControllerBase
 {
     private readonly IEnrollmentService _enrollmentService;
+    private readonly ICloudinaryService _cloudinaryService;
 
-    public EnrollmentsController(IEnrollmentService enrollmentService)
+    public EnrollmentsController(IEnrollmentService enrollmentService, ICloudinaryService cloudinaryService)
     {
         _enrollmentService = enrollmentService;
+        _cloudinaryService = cloudinaryService;
     }
 
     [HttpGet]
@@ -97,6 +100,55 @@ public class EnrollmentsController : ControllerBase
 
         var enrollment = await _enrollmentService.UpdateStatusAsync(id, userId, IsAdministrator(), status);
         return enrollment is null ? NotFound() : Ok(enrollment);
+    }
+
+    [HttpGet("{id}/photo")]
+    public async Task<IActionResult> GetPhoto(string id)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        var enrollment = await _enrollmentService.GetByIdAsync(id, userId, IsAdministrator());
+        return enrollment is null || string.IsNullOrWhiteSpace(enrollment.PhotoUrl)
+            ? NotFound()
+            : Ok(new { url = enrollment.PhotoUrl });
+    }
+
+    [HttpPost("{id}/photo")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public Task<IActionResult> UploadPhoto(string id, [FromForm] UploadMediaRequestDto request) => SavePhoto(id, request);
+
+    [HttpPut("{id}/photo")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public Task<IActionResult> UpdatePhoto(string id, [FromForm] UploadMediaRequestDto request) => SavePhoto(id, request);
+
+    private async Task<IActionResult> SavePhoto(string id, UploadMediaRequestDto request)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+
+        var isAdministrator = IsAdministrator();
+        var enrollment = await _enrollmentService.GetByIdAsync(id, userId, isAdministrator);
+        if (enrollment is null)
+            return NotFound();
+
+        try
+        {
+            var publicId = CloudinaryService.CreatePublicId("matricula", $"{enrollment.UserId}-{enrollment.CourseId}", enrollment.Id);
+            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/enrollments");
+            var updatedEnrollment = await _enrollmentService.UpdatePhotoAsync(id, userId, isAdministrator, result.Url);
+            return updatedEnrollment is null ? NotFound() : Ok(updatedEnrollment);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = exception.Message });
+        }
     }
 
     [HttpDelete("{id}")]

@@ -6,6 +6,7 @@ public record EnrollmentResponseDto(
     string Id,
     string UserId,
     string CourseId,
+    string? PhotoUrl,
     EnrollmentStatus Status,
     decimal ProgressPercentage,
     DateTime EnrolledAt,

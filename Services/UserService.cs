@@ -81,6 +81,21 @@ public class UserService : IUserService
         return ToResponse(user);
     }
 
+    public async Task<UserResponseDto?> UpdateAvatarAsync(string id, string avatarUrl)
+    {
+        var user = await _usersCollection
+            .Find(existingUser => existingUser.Id == id && existingUser.DeletedAt == null)
+            .FirstOrDefaultAsync();
+
+        if (user is null)
+            return null;
+
+        user.AvatarUrl = avatarUrl;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _usersCollection.ReplaceOneAsync(existingUser => existingUser.Id == id, user);
+        return ToResponse(user);
+    }
+
     public async Task<bool> DeleteAsync(string id)
     {
         var update = Builders<User>.Update

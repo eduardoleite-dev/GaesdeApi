@@ -69,6 +69,21 @@ public class CategoryService : ICategoryService
         return ToResponse(category);
     }
 
+    public async Task<CategoryResponseDto?> UpdateImageAsync(string id, string imageUrl)
+    {
+        var category = await _categoriesCollection
+            .Find(existingCategory => existingCategory.Id == id)
+            .FirstOrDefaultAsync();
+
+        if (category is null)
+            return null;
+
+        category.ImageUrl = imageUrl;
+        category.UpdatedAt = DateTime.UtcNow;
+        await _categoriesCollection.ReplaceOneAsync(existingCategory => existingCategory.Id == id, category);
+        return ToResponse(category);
+    }
+
     public async Task<bool> DeleteAsync(string id)
     {
         var result = await _categoriesCollection.DeleteOneAsync(category => category.Id == id);
@@ -87,6 +102,7 @@ public class CategoryService : ICategoryService
     private static CategoryResponseDto ToResponse(Category category) => new(
         category.Id,
         category.Name,
+        category.ImageUrl,
         category.CreatedAt,
         category.UpdatedAt);
 }

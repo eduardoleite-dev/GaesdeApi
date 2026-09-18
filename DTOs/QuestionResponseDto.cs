@@ -7,6 +7,7 @@ public record QuestionResponseDto(
     string QuizId,
     QuestionType Type,
     string QuestionText,
+    string? PhotoUrl,
     decimal Points,
     int OrderIndex,
     DateTime CreatedAt,

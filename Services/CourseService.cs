@@ -1,6 +1,7 @@
 using GaesdeApi.DTOs;
 using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace GaesdeApi.Services;
@@ -77,7 +78,7 @@ public class CourseService : ICourseService
     {
         if (!Enum.IsDefined(request.Level) ||
             !IsValidContent(request.Title, request.Slug, request.Price, request.Description) ||
-            !await IsProfessorAsync(instructorId) ||
+            !await IsProfessorOrAdministratorAsync(instructorId) ||
             await SlugExistsAsync(request.Slug) ||
             !await CategoryExistsAsync(request.CategoryId))
             return null;
@@ -102,18 +103,26 @@ public class CourseService : ICourseService
         return ToResponse(course);
     }
 
-    public async Task<CourseResponseDto?> UpdateAsync(string id, string instructorId, UpdateCourseRequestDto request)
+    public async Task<CourseResponseDto?> UpdateAsync(
+        string id,
+        string instructorId,
+        bool isAdministrator,
+        UpdateCourseRequestDto request)
     {
         if (!Enum.IsDefined(request.Level) ||
             !IsValidContent(request.Title, request.Slug, request.Price, request.Description) ||
             !await CategoryExistsAsync(request.CategoryId))
             return null;
 
+        var filter = Builders<Course>.Filter.And(
+            Builders<Course>.Filter.Eq(existingCourse => existingCourse.Id, id),
+            Builders<Course>.Filter.Eq(existingCourse => existingCourse.DeletedAt, null));
+
+        if (!isAdministrator)
+            filter &= Builders<Course>.Filter.Eq(existingCourse => existingCourse.InstructorId, instructorId);
+
         var course = await _coursesCollection
-            .Find(existingCourse =>
-                existingCourse.Id == id &&
-                existingCourse.InstructorId == instructorId &&
-                existingCourse.DeletedAt == null)
+            .Find(filter)
             .FirstOrDefaultAsync();
 
         if (course is null || await SlugExistsAsync(request.Slug, id))
@@ -128,6 +137,18 @@ public class CourseService : ICourseService
         course.CategoryId = request.CategoryId;
         course.UpdatedAt = DateTime.UtcNow;
 
+        await _coursesCollection.ReplaceOneAsync(existingCourse => existingCourse.Id == id, course);
+        return ToResponse(course);
+    }
+
+    public async Task<CourseResponseDto?> UpdateCoverImageAsync(string id, string coverImage)
+    {
+        var course = await GetActiveCourseAsync(id);
+        if (course is null)
+            return null;
+
+        course.CoverImage = coverImage;
+        course.UpdatedAt = DateTime.UtcNow;
         await _coursesCollection.ReplaceOneAsync(existingCourse => existingCourse.Id == id, course);
         return ToResponse(course);
     }
@@ -190,11 +211,14 @@ public class CourseService : ICourseService
         return result.ModifiedCount > 0;
     }
 
-    private async Task<bool> IsProfessorAsync(string instructorId)
+    private async Task<bool> IsProfessorOrAdministratorAsync(string instructorId)
     {
+        if (instructorId == "Master")
+            return true;
+
         return await _usersCollection.Find(user =>
                 user.Id == instructorId &&
-                user.AccessLevel == AccessLevel.Professor &&
+                (user.AccessLevel == AccessLevel.Professor || user.AccessLevel == AccessLevel.Administrador) &&
                 user.DeletedAt == null)
             .Limit(1)
             .AnyAsync();
@@ -202,7 +226,13 @@ public class CourseService : ICourseService
 
     private async Task<bool> CategoryExistsAsync(string? categoryId)
     {
-        return string.IsNullOrWhiteSpace(categoryId) || await _categoriesCollection
+        if (string.IsNullOrWhiteSpace(categoryId))
+            return true;
+
+        if (!ObjectId.TryParse(categoryId, out _))
+            return false;
+
+        return await _categoriesCollection
             .Find(category => category.Id == categoryId)
             .Limit(1)
             .AnyAsync();

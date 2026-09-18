@@ -15,6 +15,9 @@ public class Enrollment
     [BsonElement("course_id")]
     public string CourseId { get; set; } = string.Empty;
 
+    [BsonElement("photo_url")]
+    public string? PhotoUrl { get; set; }
+
     [BsonElement("status")]
     [BsonRepresentation(BsonType.String)]
     public EnrollmentStatus Status { get; set; } = EnrollmentStatus.Active;

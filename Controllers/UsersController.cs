@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using GaesdeApi.DTOs;
 using GaesdeApi.Models;
+using GaesdeApi.Services;
 using GaesdeApi.Services.Interfaces;
 
 namespace GaesdeApi.Controllers;
@@ -13,10 +14,12 @@ namespace GaesdeApi.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly ICloudinaryService _cloudinaryService;
 
-    public UsersController(IUserService userService)
+    public UsersController(IUserService userService, ICloudinaryService cloudinaryService)
     {
         _userService = userService;
+        _cloudinaryService = cloudinaryService;
     }
 
     [HttpGet]
@@ -44,6 +47,15 @@ public class UsersController : ControllerBase
         return user is null ? NotFound() : Ok(user);
     }
 
+    [HttpGet("{id}/photo")]
+    public async Task<IActionResult> GetPhoto(string id)
+    {
+        var user = await _userService.GetByIdAsync(id);
+        return user is null || string.IsNullOrWhiteSpace(user.AvatarUrl)
+            ? NotFound()
+            : Ok(new { url = user.AvatarUrl });
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
@@ -69,6 +81,64 @@ public class UsersController : ControllerBase
         return user is null
             ? NotFound(new { message = Messages.Users.UpdateNotFound })
             : Ok(user);
+    }
+
+    [HttpPost("{id}/photo")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<IActionResult> UploadPhoto(string id, [FromForm] UploadMediaRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!User.IsInRole("Administrador") && currentUserId != id)
+            return Forbid();
+
+        var user = await _userService.GetByIdAsync(id);
+        if (user is null)
+            return NotFound();
+
+        try
+        {
+            var publicId = CloudinaryService.CreatePublicId("usuario", user.Name, user.Id);
+            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/users");
+            var updatedUser = await _userService.UpdateAvatarAsync(id, result.Url);
+            return Ok(updatedUser);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = exception.Message });
+        }
+    }
+
+    [HttpPut("{id}/photo")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<IActionResult> UpdatePhoto(string id, [FromForm] UploadMediaRequestDto request)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!User.IsInRole("Administrador") && currentUserId != id)
+            return Forbid();
+
+        var user = await _userService.GetByIdAsync(id);
+        if (user is null)
+            return NotFound();
+
+        try
+        {
+            var publicId = CloudinaryService.CreatePublicId("usuario", user.Name, user.Id);
+            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/users");
+            var updatedUser = await _userService.UpdateAvatarAsync(id, result.Url);
+            return Ok(updatedUser);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = exception.Message });
+        }
     }
 
     [HttpDelete("{id}")]

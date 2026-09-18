@@ -12,6 +12,9 @@ public class Category
     [BsonElement("name")]
     public string Name { get; set; } = string.Empty;
 
+    [BsonElement("image_url")]
+    public string? ImageUrl { get; set; }
+
     [BsonElement("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

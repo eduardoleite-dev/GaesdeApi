@@ -5,6 +5,7 @@ namespace GaesdeApi.Services.Interfaces;
 public interface ICloudinaryService
 {
     Task<CloudinaryUploadResult> UploadImageOrPdfAsync(IFormFile file);
+    Task<CloudinaryUploadResult> UploadImageAsync(IFormFile file, string publicId, string folder);
     Task DeleteAsync(string publicId, bool isPdf);
 }
 

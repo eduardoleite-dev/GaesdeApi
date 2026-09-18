@@ -84,6 +84,21 @@ public class QuestionService : IQuestionService
         return ToResponse(question);
     }
 
+    public async Task<QuestionResponseDto?> UpdatePhotoAsync(string id, string photoUrl)
+    {
+        var question = await _questionsCollection
+            .Find(existingQuestion => existingQuestion.Id == id)
+            .FirstOrDefaultAsync();
+
+        if (question is null)
+            return null;
+
+        question.PhotoUrl = photoUrl;
+        question.UpdatedAt = DateTime.UtcNow;
+        await _questionsCollection.ReplaceOneAsync(existingQuestion => existingQuestion.Id == id, question);
+        return ToResponse(question);
+    }
+
     public async Task<bool> DeleteAsync(string id)
     {
         var result = await _questionsCollection.DeleteOneAsync(question => question.Id == id);
@@ -126,6 +141,7 @@ public class QuestionService : IQuestionService
         question.QuizId,
         question.Type,
         question.QuestionText,
+        question.PhotoUrl,
         question.Points,
         question.OrderIndex,
         question.CreatedAt,

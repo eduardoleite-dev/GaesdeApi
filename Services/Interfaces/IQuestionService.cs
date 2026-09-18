@@ -8,5 +8,6 @@ public interface IQuestionService
     Task<QuestionResponseDto?> GetByIdAsync(string id);
     Task<QuestionResponseDto?> CreateAsync(CreateQuestionRequestDto request);
     Task<QuestionResponseDto?> UpdateAsync(string id, UpdateQuestionRequestDto request);
+    Task<QuestionResponseDto?> UpdatePhotoAsync(string id, string photoUrl);
     Task<bool> DeleteAsync(string id);
 }

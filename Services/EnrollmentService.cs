@@ -74,6 +74,21 @@ public class EnrollmentService : IEnrollmentService
         return ToResponse(enrollment);
     }
 
+    public async Task<EnrollmentResponseDto?> UpdatePhotoAsync(
+        string id,
+        string userId,
+        bool isAdministrator,
+        string photoUrl)
+    {
+        var enrollment = await FindAuthorizedAsync(id, userId, isAdministrator);
+        if (enrollment is null)
+            return null;
+
+        enrollment.PhotoUrl = photoUrl;
+        await _enrollmentsCollection.ReplaceOneAsync(existingEnrollment => existingEnrollment.Id == id, enrollment);
+        return ToResponse(enrollment);
+    }
+
     public async Task<EnrollmentResponseDto?> UpdateProgressAsync(
         string id,
         string userId,
@@ -166,6 +181,7 @@ public class EnrollmentService : IEnrollmentService
             enrollment.Id,
             enrollment.UserId,
             enrollment.CourseId,
+            enrollment.PhotoUrl,
             enrollment.Status,
             enrollment.ProgressPercentage,
             enrollment.EnrolledAt,

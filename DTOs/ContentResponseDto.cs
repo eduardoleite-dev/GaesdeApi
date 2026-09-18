@@ -6,6 +6,7 @@ public record ContentResponseDto(
     string Id,
     string ModuleId,
     string Title,
+    string? PhotoUrl,
     ContentType Type,
     int OrderIndex,
     bool IsFreePreview,
