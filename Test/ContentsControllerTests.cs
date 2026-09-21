@@ -42,6 +42,21 @@ public class ContentsControllerTests
     }
 
     [Fact]
+    public async Task GetAll_WhenStudentIsEnrolledPassesStudentScope()
+    {
+        var service = new Mock<IContentService>();
+        service.Setup(value => value.GetAllAsync("module-id", "student-id", AccessLevel.Aluno))
+            .ReturnsAsync(new[] { Response() });
+        var controller = new ContentsController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
+
+        var result = await controller.GetAll("module-id");
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.GetAllAsync("module-id", "student-id", AccessLevel.Aluno), Times.Once);
+    }
+
+    [Fact]
     public async Task Create_WhenRejected_ReturnsConflict()
     {
         var request = new CreateContentRequestDto("module-id", "Video", ContentType.Video, 0);

@@ -25,9 +25,9 @@ public class QuizzesController : ControllerBase
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination)
     {
         var quizzes = await _quizService.GetAllAsync();
-        if (IsStudent() && _accessService is not null)
+        if (Utils.IsStudent(User) && _accessService is not null)
         {
-            var userId = GetUserId()!;
+            var userId = Utils.GetUserId(User)!;
             var accessible = await Task.WhenAll(quizzes.Select(async quiz =>
                 new { Quiz = quiz, Allowed = await _accessService.CanAccessQuizAsync(userId, quiz.Id, AccessLevel.Aluno) }));
             quizzes = accessible.Where(value => value.Allowed).Select(value => value.Quiz).ToArray();
@@ -42,8 +42,8 @@ public class QuizzesController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var quiz = await _quizService.GetByIdAsync(id);
-        if (quiz is not null && IsStudent() && _accessService is not null &&
-            !await _accessService.CanAccessQuizAsync(GetUserId()!, id, AccessLevel.Aluno))
+        if (quiz is not null && Utils.IsStudent(User) && _accessService is not null &&
+            !await _accessService.CanAccessQuizAsync(Utils.GetUserId(User)!, id, AccessLevel.Aluno))
             return Forbid();
         return quiz is null ? NotFound() : Ok(quiz);
     }
@@ -75,6 +75,5 @@ public class QuizzesController : ControllerBase
         return await _quizService.DeleteAsync(id) ? NoContent() : NotFound();
     }
 
-    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
-    private bool IsStudent() => User?.IsInRole(nameof(AccessLevel.Aluno)) == true;
+    private string? GetUserId() => Utils.GetUserId(User);
 }

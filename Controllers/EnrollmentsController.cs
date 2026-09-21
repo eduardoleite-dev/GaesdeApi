@@ -72,9 +72,9 @@ public class EnrollmentsController : ControllerBase
         if (userId is null)
             return Unauthorized();
 
-        var canEnrollOtherUsers = User.IsInRole(nameof(AccessLevel.Administrador)) ||
-            User.IsInRole(nameof(AccessLevel.Professor)) ||
-            User.IsInRole(nameof(AccessLevel.Vendedor));
+        var canEnrollOtherUsers = Utils.HasRoleClaim(User, nameof(AccessLevel.Administrador)) ||
+            Utils.HasRoleClaim(User, nameof(AccessLevel.Professor)) ||
+            Utils.HasRoleClaim(User, nameof(AccessLevel.Vendedor));
         var enrollment = await _enrollmentService.CreateAsync(userId, canEnrollOtherUsers, request);
         return enrollment is null
             ? Conflict(new { message = Messages.Enrollments.CreateConflict })

@@ -121,6 +121,21 @@ public class CoursesControllerTests
     }
 
     [Fact]
+    public async Task GetCatalog_AsSellerUsesSellerScope()
+    {
+        var service = new Mock<ICourseService>();
+        service.Setup(value => value.GetVisibleAsync("seller-id", AccessLevel.Vendedor))
+            .ReturnsAsync(new[] { Response() });
+        var controller = new CoursesController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "seller-id", "Vendedor");
+
+        var result = await controller.GetCatalog(new PaginationRequest());
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.GetVisibleAsync("seller-id", AccessLevel.Vendedor), Times.Once);
+    }
+
+    [Fact]
     public async Task SubmitForReview_UsesTokenInstructorId()
     {
         var service = new Mock<ICourseService>();

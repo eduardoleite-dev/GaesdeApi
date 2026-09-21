@@ -25,15 +25,16 @@ public class QuestionOptionsController : ControllerBase
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? questionId = null, [FromQuery] bool? isCorrect = null)
     {
         var options = await _questionOptionService.GetAllAsync(questionId);
-        if (IsStudent())
+        var isStudent = Utils.IsStudent(User);
+        if (isStudent)
         {
             if (string.IsNullOrWhiteSpace(questionId) || _accessService is null ||
-                !await _accessService.CanAccessQuestionAsync(GetUserId()!, questionId, AccessLevel.Aluno))
+                !await _accessService.CanAccessQuestionAsync(Utils.GetUserId(User)!, questionId, AccessLevel.Aluno))
                 return Forbid();
         }
-        if (isCorrect.HasValue && !IsStudent())
+        if (isCorrect.HasValue && !isStudent)
             options = options.Where(option => option.IsCorrect == isCorrect.Value).ToArray();
-        if (IsStudent())
+        if (isStudent)
             return Ok(Utils.Paginate(options.Select(ToStudentResponse), pagination));
         return Ok(Utils.Paginate(options, pagination));
     }
@@ -45,12 +46,13 @@ public class QuestionOptionsController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var option = await _questionOptionService.GetByIdAsync(id);
-        if (option is not null && IsStudent() && _accessService is not null &&
-            !await _accessService.CanAccessOptionAsync(GetUserId()!, id, AccessLevel.Aluno))
+        var isStudent = Utils.IsStudent(User);
+        if (option is not null && isStudent && _accessService is not null &&
+            !await _accessService.CanAccessOptionAsync(Utils.GetUserId(User)!, id, AccessLevel.Aluno))
             return Forbid();
         return option is null
             ? NotFound()
-            : IsStudent()
+            : isStudent
                 ? Ok(ToStudentResponse(option))
                 : Ok(option);
     }
@@ -82,8 +84,7 @@ public class QuestionOptionsController : ControllerBase
         return await _questionOptionService.DeleteAsync(id) ? NoContent() : NotFound();
     }
 
-    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
-    private bool IsStudent() => User?.IsInRole(nameof(AccessLevel.Aluno)) == true;
+    private string? GetUserId() => Utils.GetUserId(User);
 
     private static StudentQuestionOptionResponseDto ToStudentResponse(QuestionOptionResponseDto option) => new(
         option.Id,

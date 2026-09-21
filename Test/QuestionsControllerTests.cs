@@ -81,4 +81,32 @@ public class QuestionsControllerTests
 
         Assert.IsType<ForbidResult>(result);
     }
+
+    [Fact]
+    public async Task GetAll_WhenStudentAccessLevelIsProvidedInCustomClaim_ReturnsForbidForNotEnrolled()
+    {
+        var service = new Mock<IQuestionService>();
+        service.Setup(value => value.GetAllAsync("quiz-id")).ReturnsAsync(new[] { Response() });
+        var access = new Mock<IEnrollmentAccessService>();
+        access.Setup(value => value.CanAccessQuizAsync("student-id", "quiz-id", AccessLevel.Aluno))
+            .ReturnsAsync(false);
+
+        var controller = new QuestionsController(service.Object, new Mock<ICloudinaryService>().Object, access.Object);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                {
+                    new Claim("nameid", "student-id"),
+                    new Claim("role", AccessLevel.Aluno.ToString()),
+                    new Claim("nivel_acesso", ((int)AccessLevel.Aluno).ToString())
+                }, "Test"))
+            }
+        };
+
+        var result = await controller.GetAll("quiz-id");
+
+        Assert.IsType<ForbidResult>(result);
+    }
 }

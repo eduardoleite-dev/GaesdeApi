@@ -77,4 +77,20 @@ public class ModulesControllerTests
 
         Assert.IsType<ForbidResult>(result);
     }
+
+    [Fact]
+    public async Task GetAll_WhenStudentIsEnrolled_ReturnsOk()
+    {
+        var service = new Mock<IModuleService>();
+        service.Setup(value => value.GetAllAsync("course-id")).ReturnsAsync(new[] { Response() });
+        var access = new Mock<IEnrollmentAccessService>();
+        access.Setup(value => value.CanAccessCourseAsync("student-id", "course-id", AccessLevel.Aluno))
+            .ReturnsAsync(true);
+        var controller = new ModulesController(service.Object, access.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
+
+        var result = await controller.GetAll("course-id");
+
+        Assert.IsType<OkObjectResult>(result);
+    }
 }

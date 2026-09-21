@@ -18,9 +18,11 @@ public class QuestionService : IQuestionService
 
     public async Task<IReadOnlyCollection<QuestionResponseDto>> GetAllAsync(string? quizId = null)
     {
-        var filter = string.IsNullOrWhiteSpace(quizId)
+        var effectiveQuizId = await ResolveQuizIdAsync(quizId);
+
+        var filter = string.IsNullOrWhiteSpace(effectiveQuizId)
             ? Builders<Question>.Filter.Empty
-            : Builders<Question>.Filter.Eq(question => question.QuizId, quizId);
+            : Builders<Question>.Filter.Eq(question => question.QuizId, effectiveQuizId);
 
         var questions = await _questionsCollection
             .Find(filter)
@@ -105,9 +107,21 @@ public class QuestionService : IQuestionService
         return result.DeletedCount > 0;
     }
 
+    private async Task<string?> ResolveQuizIdAsync(string? quizId)
+    {
+        if (string.IsNullOrWhiteSpace(quizId))
+            return null;
+
+        var quiz = await _quizzesCollection
+            .Find(value => value.Id == quizId || value.ContentId == quizId)
+            .FirstOrDefaultAsync();
+
+        return quiz?.Id ?? quizId;
+    }
+
     private async Task<bool> IsQuizAsync(string quizId)
     {
-        return await _quizzesCollection.Find(quiz => quiz.Id == quizId)
+        return await _quizzesCollection.Find(quiz => quiz.Id == quizId || quiz.ContentId == quizId)
             .Limit(1)
             .AnyAsync();
     }

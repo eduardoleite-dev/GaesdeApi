@@ -25,10 +25,10 @@ public class ModulesController : ControllerBase
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? courseId = null, [FromQuery] string? search = null)
     {
         var modules = await _moduleService.GetAllAsync(courseId);
-        if (IsStudent())
+        if (Utils.IsStudent(User))
         {
             if (string.IsNullOrWhiteSpace(courseId) ||
-                _accessService is null || !await _accessService.CanAccessCourseAsync(GetUserId()!, courseId, AccessLevel.Aluno))
+                _accessService is null || !await _accessService.CanAccessCourseAsync(Utils.GetUserId(User)!, courseId, AccessLevel.Aluno))
                 return Forbid();
         }
         if (!string.IsNullOrWhiteSpace(search))
@@ -43,8 +43,8 @@ public class ModulesController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var module = await _moduleService.GetByIdAsync(id);
-        if (module is not null && IsStudent() &&
-            (_accessService is null || !await _accessService.CanAccessModuleAsync(GetUserId()!, id, AccessLevel.Aluno)))
+        if (module is not null && Utils.IsStudent(User) &&
+            (_accessService is null || !await _accessService.CanAccessModuleAsync(Utils.GetUserId(User)!, id, AccessLevel.Aluno)))
             return Forbid();
         return module is null ? NotFound() : Ok(module);
     }
@@ -90,8 +90,7 @@ public class ModulesController : ControllerBase
             : NotFound();
     }
 
-    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
+    private string? GetUserId() => Utils.GetUserId(User);
 
-    private bool IsAdministrator() => User.IsInRole("Administrador");
-    private bool IsStudent() => User?.IsInRole(nameof(AccessLevel.Aluno)) == true;
+    private bool IsAdministrator() => Utils.IsAdministrator(User);
 }

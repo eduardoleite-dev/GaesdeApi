@@ -28,10 +28,10 @@ public class QuestionsController : ControllerBase
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? quizId = null, [FromQuery] QuestionType? type = null)
     {
         var questions = await _questionService.GetAllAsync(quizId);
-        if (IsStudent())
+        if (Utils.IsStudent(User))
         {
             if (string.IsNullOrWhiteSpace(quizId) || _accessService is null ||
-                !await _accessService.CanAccessQuizAsync(GetUserId()!, quizId, AccessLevel.Aluno))
+                !await _accessService.CanAccessQuizAsync(Utils.GetUserId(User)!, quizId, AccessLevel.Aluno))
                 return Forbid();
         }
         if (type.HasValue)
@@ -46,8 +46,8 @@ public class QuestionsController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var question = await _questionService.GetByIdAsync(id);
-        if (question is not null && IsStudent() && _accessService is not null &&
-            !await _accessService.CanAccessQuestionAsync(GetUserId()!, id, AccessLevel.Aluno))
+        if (question is not null && Utils.IsStudent(User) && _accessService is not null &&
+            !await _accessService.CanAccessQuestionAsync(Utils.GetUserId(User)!, id, AccessLevel.Aluno))
             return Forbid();
         return question is null ? NotFound() : Ok(question);
     }
@@ -76,8 +76,8 @@ public class QuestionsController : ControllerBase
     public async Task<IActionResult> GetPhoto(string id)
     {
         var question = await _questionService.GetByIdAsync(id);
-        if (question is not null && IsStudent() && _accessService is not null &&
-            !await _accessService.CanAccessQuestionAsync(GetUserId()!, id, AccessLevel.Aluno))
+        if (question is not null && Utils.IsStudent(User) && _accessService is not null &&
+            !await _accessService.CanAccessQuestionAsync(Utils.GetUserId(User)!, id, AccessLevel.Aluno))
             return Forbid();
         return question is null || string.IsNullOrWhiteSpace(question.PhotoUrl)
             ? NotFound()
@@ -124,6 +124,5 @@ public class QuestionsController : ControllerBase
         return await _questionService.DeleteAsync(id) ? NoContent() : NotFound();
     }
 
-    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
-    private bool IsStudent() => User?.IsInRole(nameof(AccessLevel.Aluno)) == true;
+    private string? GetUserId() => Utils.GetUserId(User);
 }

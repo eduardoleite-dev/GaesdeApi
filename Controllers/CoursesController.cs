@@ -52,7 +52,8 @@ public class CoursesController : ControllerBase
         var userId = GetUserId();
         if (userId is null)
             return Unauthorized();
-        var courses = await _courseService.GetVisibleAsync(userId, AccessLevel.Aluno);
+        var accessLevel = GetAccessLevel();
+        var courses = await _courseService.GetVisibleAsync(userId, accessLevel);
         return Ok(Utils.Paginate(FilterCourses(courses, CourseStatus.Published, level, search), pagination));
     }
 
@@ -187,16 +188,7 @@ public class CoursesController : ControllerBase
 
     private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-    private AccessLevel GetAccessLevel()
-    {
-        if (User.IsInRole(nameof(AccessLevel.Administrador)))
-            return AccessLevel.Administrador;
-        if (User.IsInRole(nameof(AccessLevel.Professor)))
-            return AccessLevel.Professor;
-        if (User.IsInRole(nameof(AccessLevel.Vendedor)))
-            return AccessLevel.Vendedor;
-        return AccessLevel.Aluno;
-    }
+    private AccessLevel GetAccessLevel() => Utils.GetAccessLevel(User);
 
     private static IEnumerable<CourseResponseDto> FilterCourses(
         IEnumerable<CourseResponseDto> courses,

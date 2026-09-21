@@ -44,7 +44,9 @@ public class EnrollmentAccessService : IEnrollmentAccessService
 
     public async Task<bool> CanAccessQuizAsync(string userId, string quizId, AccessLevel accessLevel)
     {
-        var quiz = await _quizzes.Find(value => value.Id == quizId).FirstOrDefaultAsync();
+        var quiz = await _quizzes
+            .Find(value => value.Id == quizId || value.ContentId == quizId)
+            .FirstOrDefaultAsync();
         if (quiz is null)
             return false;
         return await CanAccessContentAsync(userId, quiz.ContentId, accessLevel);

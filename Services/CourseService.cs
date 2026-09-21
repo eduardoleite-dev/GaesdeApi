@@ -43,7 +43,6 @@ public class CourseService : ICourseService
                 Builders<Course>.Filter.Eq(course => course.Status, CourseStatus.Published),
                 Builders<Course>.Filter.Eq(course => course.DeletedAt, null)),
             _ => Builders<Course>.Filter.And(
-                Builders<Course>.Filter.Eq(course => course.Status, CourseStatus.Published),
                 Builders<Course>.Filter.Eq(course => course.DeletedAt, null),
                 Builders<Course>.Filter.In(course => course.Id, await GetEnrolledCourseIdsAsync(userId)))
         };
@@ -71,11 +70,15 @@ public class CourseService : ICourseService
             .FirstOrDefaultAsync();
 
         var isEnrolled = accessLevel != AccessLevel.Aluno || await IsEnrolledAsync(userId, id);
+        var canAccessPublishedCatalog = accessLevel is AccessLevel.Vendedor;
+        var canAccessAsEnrolledStudent = accessLevel == AccessLevel.Aluno && isEnrolled;
         if (course is null ||
             (accessLevel == AccessLevel.Professor && course.InstructorId != userId) ||
             (accessLevel == AccessLevel.Aluno && !isEnrolled) ||
+            (canAccessPublishedCatalog && course.Status != CourseStatus.Published) ||
             (accessLevel != AccessLevel.Administrador &&
              accessLevel != AccessLevel.Professor &&
+             !canAccessAsEnrolledStudent &&
              course.Status != CourseStatus.Published))
             return null;
 

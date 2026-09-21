@@ -122,14 +122,5 @@ public class CommentsController : ControllerBase
 
     private bool IsAdministrator() => User.IsInRole("Administrador");
 
-    private AccessLevel GetAccessLevel()
-    {
-        if (User.IsInRole(nameof(AccessLevel.Administrador)))
-            return AccessLevel.Administrador;
-        if (User.IsInRole(nameof(AccessLevel.Professor)))
-            return AccessLevel.Professor;
-        if (User.IsInRole(nameof(AccessLevel.Vendedor)))
-            return AccessLevel.Vendedor;
-        return AccessLevel.Aluno;
-    }
+    private AccessLevel GetAccessLevel() => Utils.GetAccessLevel(User);
 }
