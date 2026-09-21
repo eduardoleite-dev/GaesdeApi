@@ -16,9 +16,11 @@ public class UserAnswersControllerTests
     public async Task GetAll_WithAttemptFilter_ReturnsOk()
     {
         var service = new Mock<IUserAnswerService>();
-        service.Setup(value => value.GetAllAsync("attempt-id")).ReturnsAsync(new[] { Response() });
+        service.Setup(value => value.GetAllAsync("attempt-id", "student-id", false)).ReturnsAsync(new[] { Response() });
+        var controller = new UserAnswersController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
 
-        Assert.IsType<OkObjectResult>(await new UserAnswersController(service.Object).GetAll("attempt-id"));
+        Assert.IsType<OkObjectResult>(await controller.GetAll("attempt-id"));
     }
 
     [Fact]
@@ -26,7 +28,7 @@ public class UserAnswersControllerTests
     {
         var request = new CreateUserAnswerRequestDto("attempt-id", "question-id", "option-id");
         var service = new Mock<IUserAnswerService>();
-        service.Setup(value => value.CreateAsync(request)).ReturnsAsync(Response());
+        service.Setup(value => value.CreateAsync(request, "student-id")).ReturnsAsync(Response());
         var controller = new UserAnswersController(service.Object);
         ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
 
@@ -38,7 +40,7 @@ public class UserAnswersControllerTests
     {
         var request = new UpdateUserAnswerRequestDto(PointsEarned: 1);
         var service = new Mock<IUserAnswerService>();
-        service.Setup(value => value.UpdateAsync("missing", request)).ReturnsAsync((UserAnswerResponseDto?)null);
+        service.Setup(value => value.UpdateAsync("missing", request, "student-id", false)).ReturnsAsync((UserAnswerResponseDto?)null);
         var controller = new UserAnswersController(service.Object);
         ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
 
@@ -49,7 +51,7 @@ public class UserAnswersControllerTests
     public async Task Delete_WhenSuccessful_ReturnsNoContent()
     {
         var service = new Mock<IUserAnswerService>();
-        service.Setup(value => value.DeleteAsync("answer-id")).ReturnsAsync(true);
+        service.Setup(value => value.DeleteAsync("answer-id", "student-id", false)).ReturnsAsync(true);
         var controller = new UserAnswersController(service.Object);
         ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
 

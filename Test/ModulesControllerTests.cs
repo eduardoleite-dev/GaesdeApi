@@ -1,5 +1,6 @@
 using GaesdeApi.Controllers;
 using GaesdeApi.DTOs;
+using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -59,5 +60,21 @@ public class ModulesControllerTests
         var result = await controller.Delete("missing");
 
         Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetAll_WhenStudentIsNotEnrolled_ReturnsForbid()
+    {
+        var service = new Mock<IModuleService>();
+        service.Setup(value => value.GetAllAsync("course-id")).ReturnsAsync(new[] { Response() });
+        var access = new Mock<IEnrollmentAccessService>();
+        access.Setup(value => value.CanAccessCourseAsync("student-id", "course-id", AccessLevel.Aluno))
+            .ReturnsAsync(false);
+        var controller = new ModulesController(service.Object, access.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
+
+        var result = await controller.GetAll("course-id");
+
+        Assert.IsType<ForbidResult>(result);
     }
 }

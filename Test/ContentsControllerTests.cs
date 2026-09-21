@@ -1,7 +1,7 @@
 using GaesdeApi.Controllers;
 using GaesdeApi.DTOs;
-using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
+using GaesdeApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Xunit;
@@ -11,28 +11,32 @@ namespace GaesdeApi.Tests;
 public class ContentsControllerTests
 {
     private static ContentResponseDto Response() => new(
-        "content-id", "module-id", "Video", ContentType.Video, 1, true, 120,
+        "content-id", "module-id", "Video", null, ContentType.Video, 1, true, 120,
         "https://example.com/video.mp4", null, null, null, DateTime.UtcNow, DateTime.UtcNow);
 
     [Fact]
     public async Task GetAll_PassesModuleFilter()
     {
         var service = new Mock<IContentService>();
-        service.Setup(value => value.GetAllAsync("module-id")).ReturnsAsync(new[] { Response() });
+        service.Setup(value => value.GetAllAsync("module-id", "student-id", AccessLevel.Aluno)).ReturnsAsync(new[] { Response() });
+        var controller = new ContentsController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
 
-        var result = await new ContentsController(service.Object).GetAll("module-id");
+        var result = await controller.GetAll("module-id");
 
         Assert.IsType<OkObjectResult>(result);
-        service.Verify(value => value.GetAllAsync("module-id"), Times.Once);
+        service.Verify(value => value.GetAllAsync("module-id", "student-id", AccessLevel.Aluno), Times.Once);
     }
 
     [Fact]
     public async Task GetById_WhenFound_ReturnsOk()
     {
         var service = new Mock<IContentService>();
-        service.Setup(value => value.GetByIdAsync("content-id")).ReturnsAsync(Response());
+        service.Setup(value => value.GetByIdAsync("content-id", "student-id", AccessLevel.Aluno)).ReturnsAsync(Response());
+        var controller = new ContentsController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
 
-        var result = await new ContentsController(service.Object).GetById("content-id");
+        var result = await controller.GetById("content-id");
 
         Assert.IsType<OkObjectResult>(result);
     }

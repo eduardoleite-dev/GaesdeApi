@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using GaesdeApi.DTOs;
+using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,16 +13,24 @@ namespace GaesdeApi.Controllers;
 public class ModulesController : ControllerBase
 {
     private readonly IModuleService _moduleService;
+    private readonly IEnrollmentAccessService? _accessService;
 
-    public ModulesController(IModuleService moduleService)
+    public ModulesController(IModuleService moduleService, IEnrollmentAccessService? accessService = null)
     {
         _moduleService = moduleService;
+        _accessService = accessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? courseId = null, [FromQuery] string? search = null)
     {
         var modules = await _moduleService.GetAllAsync(courseId);
+        if (IsStudent())
+        {
+            if (string.IsNullOrWhiteSpace(courseId) ||
+                _accessService is null || !await _accessService.CanAccessCourseAsync(GetUserId()!, courseId, AccessLevel.Aluno))
+                return Forbid();
+        }
         if (!string.IsNullOrWhiteSpace(search))
             modules = modules.Where(module => module.Title.Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
         return Ok(Utils.Paginate(modules, pagination));
@@ -34,6 +43,9 @@ public class ModulesController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var module = await _moduleService.GetByIdAsync(id);
+        if (module is not null && IsStudent() &&
+            (_accessService is null || !await _accessService.CanAccessModuleAsync(GetUserId()!, id, AccessLevel.Aluno)))
+            return Forbid();
         return module is null ? NotFound() : Ok(module);
     }
 
@@ -81,4 +93,5 @@ public class ModulesController : ControllerBase
     private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
     private bool IsAdministrator() => User.IsInRole("Administrador");
+    private bool IsStudent() => User?.IsInRole(nameof(AccessLevel.Aluno)) == true;
 }

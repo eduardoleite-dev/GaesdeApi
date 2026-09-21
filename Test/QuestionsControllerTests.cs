@@ -11,7 +11,7 @@ namespace GaesdeApi.Tests;
 public class QuestionsControllerTests
 {
     private static QuestionResponseDto Response() => new(
-        "question-id", "quiz-id", QuestionType.MultipleChoice, "Question?", 1, 0,
+        "question-id", "quiz-id", QuestionType.MultipleChoice, "Question?", null, 1, 0,
         DateTime.UtcNow, DateTime.UtcNow);
 
     [Fact]
@@ -64,5 +64,21 @@ public class QuestionsControllerTests
         var result = await controller.Delete("missing");
 
         Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task GetAll_WhenStudentIsNotEnrolled_ReturnsForbid()
+    {
+        var service = new Mock<IQuestionService>();
+        service.Setup(value => value.GetAllAsync("quiz-id")).ReturnsAsync(new[] { Response() });
+        var access = new Mock<IEnrollmentAccessService>();
+        access.Setup(value => value.CanAccessQuizAsync("student-id", "quiz-id", AccessLevel.Aluno))
+            .ReturnsAsync(false);
+        var controller = new QuestionsController(service.Object, new Mock<ICloudinaryService>().Object, access.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
+
+        var result = await controller.GetAll("quiz-id");
+
+        Assert.IsType<ForbidResult>(result);
     }
 }

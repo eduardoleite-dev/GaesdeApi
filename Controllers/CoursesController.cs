@@ -14,9 +14,9 @@ namespace GaesdeApi.Controllers;
 public class CoursesController : ControllerBase
 {
     private readonly ICourseService _courseService;
-    private readonly ICloudinaryService _cloudinaryService;
+    private readonly ICloudinaryService? _cloudinaryService;
 
-    public CoursesController(ICourseService courseService, ICloudinaryService cloudinaryService)
+    public CoursesController(ICourseService courseService, ICloudinaryService? cloudinaryService = null)
     {
         _courseService = courseService;
         _cloudinaryService = cloudinaryService;
@@ -130,7 +130,7 @@ public class CoursesController : ControllerBase
         try
         {
             var publicId = CloudinaryService.CreatePublicId("curso", course.Title, course.Id);
-            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/courses");
+            var result = await _cloudinaryService!.UploadImageAsync(request.File!, publicId, "gaesde/courses");
             var updatedCourse = await _courseService.UpdateCoverImageAsync(id, result.Url);
             return updatedCourse is null ? NotFound() : Ok(updatedCourse);
         }

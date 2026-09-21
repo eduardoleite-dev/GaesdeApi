@@ -1,4 +1,5 @@
 using GaesdeApi.DTOs;
+using System.Security.Claims;
 using GaesdeApi.Models;
 using GaesdeApi.Services;
 using GaesdeApi.Services.Interfaces;
@@ -13,9 +14,9 @@ namespace GaesdeApi.Controllers;
 public class ContentsController : ControllerBase
 {
     private readonly IContentService _contentService;
-    private readonly ICloudinaryService _cloudinaryService;
+    private readonly ICloudinaryService? _cloudinaryService;
 
-    public ContentsController(IContentService contentService, ICloudinaryService cloudinaryService)
+    public ContentsController(IContentService contentService, ICloudinaryService? cloudinaryService = null)
     {
         _contentService = contentService;
         _cloudinaryService = cloudinaryService;
@@ -24,7 +25,10 @@ public class ContentsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? moduleId = null, [FromQuery] ContentType? type = null, [FromQuery] bool? freePreview = null)
     {
-        var contents = await _contentService.GetAllAsync(moduleId);
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var contents = await _contentService.GetAllAsync(moduleId, userId, GetAccessLevel());
         if (type.HasValue)
             contents = contents.Where(content => content.Type == type.Value).ToArray();
         if (freePreview.HasValue)
@@ -38,7 +42,10 @@ public class ContentsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        var content = await _contentService.GetByIdAsync(id);
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var content = await _contentService.GetByIdAsync(id, userId, GetAccessLevel());
         return content is null ? NotFound() : Ok(content);
     }
 
@@ -65,7 +72,10 @@ public class ContentsController : ControllerBase
     [HttpGet("{id}/photo")]
     public async Task<IActionResult> GetPhoto(string id)
     {
-        var content = await _contentService.GetByIdAsync(id);
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var content = await _contentService.GetByIdAsync(id, userId, GetAccessLevel());
         return content is null || string.IsNullOrWhiteSpace(content.PhotoUrl)
             ? NotFound()
             : Ok(new { url = content.PhotoUrl });
@@ -83,14 +93,17 @@ public class ContentsController : ControllerBase
 
     private async Task<IActionResult> SavePhoto(string id, UploadMediaRequestDto request)
     {
-        var content = await _contentService.GetByIdAsync(id);
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var content = await _contentService.GetByIdAsync(id, userId, GetAccessLevel());
         if (content is null)
             return NotFound();
 
         try
         {
             var publicId = CloudinaryService.CreatePublicId("conteudo", content.Title, content.Id);
-            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/contents");
+            var result = await _cloudinaryService!.UploadImageAsync(request.File!, publicId, "gaesde/contents");
             var updatedContent = await _contentService.UpdatePhotoAsync(id, result.Url);
             return updatedContent is null ? NotFound() : Ok(updatedContent);
         }
@@ -109,5 +122,18 @@ public class ContentsController : ControllerBase
     public async Task<IActionResult> Delete(string id)
     {
         return await _contentService.DeleteAsync(id) ? NoContent() : NotFound();
+    }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    private AccessLevel GetAccessLevel()
+    {
+        if (User.IsInRole(nameof(AccessLevel.Administrador)))
+            return AccessLevel.Administrador;
+        if (User.IsInRole(nameof(AccessLevel.Professor)))
+            return AccessLevel.Professor;
+        if (User.IsInRole(nameof(AccessLevel.Vendedor)))
+            return AccessLevel.Vendedor;
+        return AccessLevel.Aluno;
     }
 }

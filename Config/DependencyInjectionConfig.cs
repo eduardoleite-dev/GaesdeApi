@@ -13,6 +13,9 @@ public static class DependencyInjectionConfig
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IEnrollmentService, EnrollmentService>();
+        services.AddScoped<IEnrollmentAccessService, EnrollmentAccessService>();
+        services.AddScoped<IContentCompletionService, ContentCompletionService>();
+        services.AddScoped<IQuizAttemptService, QuizAttemptService>();
         services.AddScoped<IContentService, ContentService>();
         services.AddScoped<IQuestionService, QuestionService>();
         services.AddScoped<IModuleService, ModuleService>();

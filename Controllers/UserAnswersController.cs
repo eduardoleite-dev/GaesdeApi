@@ -1,4 +1,5 @@
 using GaesdeApi.DTOs;
+using System.Security.Claims;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +21,10 @@ public class UserAnswersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? attemptId = null, [FromQuery] string? questionId = null, [FromQuery] bool? isCorrect = null)
     {
-        var answers = await _userAnswerService.GetAllAsync(attemptId);
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var answers = await _userAnswerService.GetAllAsync(attemptId, userId, IsAdministrator());
         if (!string.IsNullOrWhiteSpace(questionId))
             answers = answers.Where(answer => answer.QuestionId == questionId).ToArray();
         if (isCorrect.HasValue)
@@ -34,14 +38,20 @@ public class UserAnswersController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id)
     {
-        var answer = await _userAnswerService.GetByIdAsync(id);
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var answer = await _userAnswerService.GetByIdAsync(id, userId, IsAdministrator());
         return answer is null ? NotFound() : Ok(answer);
     }
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateUserAnswerRequestDto request)
     {
-        var answer = await _userAnswerService.CreateAsync(request);
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var answer = await _userAnswerService.CreateAsync(request, userId);
         return answer is null
             ? Conflict(new { message = Messages.UserAnswers.CreateConflict })
             : CreatedAtAction(nameof(GetById), new { id = answer.Id }, answer);
@@ -50,7 +60,10 @@ public class UserAnswersController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, UpdateUserAnswerRequestDto request)
     {
-        var answer = await _userAnswerService.UpdateAsync(id, request);
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        var answer = await _userAnswerService.UpdateAsync(id, request, userId, IsAdministrator());
         return answer is null
             ? NotFound(new { message = Messages.UserAnswers.UpdateNotFound })
             : Ok(answer);
@@ -59,6 +72,12 @@ public class UserAnswersController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
-        return await _userAnswerService.DeleteAsync(id) ? NoContent() : NotFound();
+        var userId = GetUserId();
+        if (userId is null)
+            return Unauthorized();
+        return await _userAnswerService.DeleteAsync(id, userId, IsAdministrator()) ? NoContent() : NotFound();
     }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
+    private bool IsAdministrator() => User.IsInRole("Administrador");
 }

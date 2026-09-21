@@ -59,5 +59,14 @@ public enum QuestionType
 public enum CommentType
 {
     Course,
-    Chat
+    Chat,
+    Forum
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum QuizAttemptStatus
+{
+    InProgress,
+    Finished,
+    Abandoned
 }

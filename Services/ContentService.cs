@@ -9,18 +9,31 @@ public class ContentService : IContentService
 {
     private readonly IMongoCollection<Content> _contentsCollection;
     private readonly IMongoCollection<CourseModule> _modulesCollection;
+    private readonly IMongoCollection<Enrollment> _enrollmentsCollection;
 
     public ContentService(IMongoDatabase database)
     {
         _contentsCollection = database.GetCollection<Content>("Contents");
         _modulesCollection = database.GetCollection<CourseModule>("Modules");
+        _enrollmentsCollection = database.GetCollection<Enrollment>("Enrollments");
     }
 
-    public async Task<IReadOnlyCollection<ContentResponseDto>> GetAllAsync(string? moduleId = null)
+    public async Task<IReadOnlyCollection<ContentResponseDto>> GetAllAsync(string? moduleId = null, string? userId = null, AccessLevel accessLevel = AccessLevel.Aluno)
     {
         var filter = string.IsNullOrWhiteSpace(moduleId)
             ? Builders<Content>.Filter.Empty
             : Builders<Content>.Filter.Eq(content => content.ModuleId, moduleId);
+
+        if (accessLevel == AccessLevel.Aluno)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return Array.Empty<ContentResponseDto>();
+            var enrolledCourseIds = await GetEnrolledCourseIdsAsync(userId);
+            var visibleModuleIds = await _modulesCollection.Find(module => enrolledCourseIds.Contains(module.CourseId))
+                .Project(module => module.Id)
+                .ToListAsync();
+            filter &= Builders<Content>.Filter.In(content => content.ModuleId, visibleModuleIds);
+        }
 
         var contents = await _contentsCollection
             .Find(filter)
@@ -30,13 +43,35 @@ public class ContentService : IContentService
         return contents.Select(ToResponse).ToArray();
     }
 
-    public async Task<ContentResponseDto?> GetByIdAsync(string id)
+    public async Task<ContentResponseDto?> GetByIdAsync(string id, string? userId = null, AccessLevel accessLevel = AccessLevel.Aluno)
     {
         var content = await _contentsCollection
             .Find(existingContent => existingContent.Id == id)
             .FirstOrDefaultAsync();
 
-        return content is null ? null : ToResponse(content);
+        if (content is null)
+            return null;
+        if (accessLevel == AccessLevel.Aluno &&
+            (string.IsNullOrWhiteSpace(userId) || !await IsContentInEnrolledCourseAsync(content, userId)))
+            return null;
+        return ToResponse(content);
+    }
+
+    private async Task<string[]> GetEnrolledCourseIdsAsync(string userId)
+    {
+        var courseIds = await _enrollmentsCollection.Find(enrollment =>
+                enrollment.UserId == userId &&
+                (enrollment.Status == EnrollmentStatus.Active || enrollment.Status == EnrollmentStatus.Completed) &&
+                (enrollment.ExpiresAt == null || enrollment.ExpiresAt > DateTime.UtcNow))
+            .Project(enrollment => enrollment.CourseId)
+            .ToListAsync();
+        return courseIds.ToArray();
+    }
+
+    private async Task<bool> IsContentInEnrolledCourseAsync(Content content, string userId)
+    {
+        var module = await _modulesCollection.Find(value => value.Id == content.ModuleId).FirstOrDefaultAsync();
+        return module is not null && (await GetEnrolledCourseIdsAsync(userId)).Contains(module.CourseId);
     }
 
     public async Task<ContentResponseDto?> CreateAsync(CreateContentRequestDto request)

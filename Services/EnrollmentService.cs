@@ -44,10 +44,10 @@ public class EnrollmentService : IEnrollmentService
 
     public async Task<EnrollmentResponseDto?> CreateAsync(
         string requesterId,
-        bool isAdministrator,
+        bool canEnrollOtherUsers,
         CreateEnrollmentRequestDto request)
     {
-        var userId = isAdministrator && !string.IsNullOrWhiteSpace(request.UserId)
+        var userId = canEnrollOtherUsers && !string.IsNullOrWhiteSpace(request.UserId)
             ? request.UserId
             : requesterId;
 

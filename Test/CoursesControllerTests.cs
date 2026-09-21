@@ -134,4 +134,22 @@ public class CoursesControllerTests
         Assert.IsType<OkObjectResult>(result);
         service.Verify(value => value.SubmitForReviewAsync("course-id", "teacher-id"), Times.Once);
     }
+
+    [Fact]
+    public async Task Update_AsAdministrator_PassesInstructorId()
+    {
+        var request = new UpdateCourseRequestDto(
+            "Course", "course", CourseLevel.Beginner, 10,
+            InstructorId: "professor-id");
+        var service = new Mock<ICourseService>();
+        service.Setup(value => value.UpdateAsync("course-id", "admin-id", true, request))
+            .ReturnsAsync(Response());
+        var controller = new CoursesController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "admin-id", "Administrador");
+
+        var result = await controller.Update("course-id", request);
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.UpdateAsync("course-id", "admin-id", true, request), Times.Once);
+    }
 }

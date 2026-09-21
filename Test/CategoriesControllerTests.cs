@@ -10,13 +10,14 @@ namespace GaesdeApi.Tests;
 public class CategoriesControllerTests
 {
     private static CategoryResponseDto Response() => new(
-        "category-id", "Matemática", DateTime.UtcNow, DateTime.UtcNow);
+        "category-id", "Matemática", null, DateTime.UtcNow, DateTime.UtcNow);
 
     [Fact]
     public async Task GetAll_ReturnsOk()
     {
         var service = new Mock<ICategoryService>();
-        service.Setup(value => value.GetAllAsync()).ReturnsAsync(new[] { Response() });
+        service.Setup(value => value.GetPageAsync(It.IsAny<PaginationRequest>(), null))
+            .ReturnsAsync(new PaginatedResponse<CategoryResponseDto>(new[] { Response() }, 1, 20, 1, 1));
 
         var result = await new CategoriesController(service.Object).GetAll();
 
@@ -39,7 +40,7 @@ public class CategoriesControllerTests
     {
         var request = new CreateCategoryRequestDto("Matemática");
         var response = new CategoryResponseDto(
-            "category-id", "Matemática", DateTime.UtcNow, DateTime.UtcNow);
+            "category-id", "Matemática", null, DateTime.UtcNow, DateTime.UtcNow);
         var service = new Mock<ICategoryService>();
         service.Setup(value => value.CreateAsync(request)).ReturnsAsync(response);
         var controller = new CategoriesController(service.Object);

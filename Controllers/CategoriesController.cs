@@ -12,9 +12,9 @@ namespace GaesdeApi.Controllers;
 public class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
-    private readonly ICloudinaryService _cloudinaryService;
+    private readonly ICloudinaryService? _cloudinaryService;
 
-    public CategoriesController(ICategoryService categoryService, ICloudinaryService cloudinaryService)
+    public CategoriesController(ICategoryService categoryService, ICloudinaryService? cloudinaryService = null)
     {
         _categoryService = categoryService;
         _cloudinaryService = cloudinaryService;
@@ -23,10 +23,7 @@ public class CategoriesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? search = null)
     {
-        var categories = await _categoryService.GetAllAsync();
-        if (!string.IsNullOrWhiteSpace(search))
-            categories = categories.Where(category => category.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
-        return Ok(Utils.Paginate(categories, pagination));
+        return Ok(await _categoryService.GetPageAsync(pagination, search));
     }
 
     [NonAction]
@@ -78,7 +75,7 @@ public class CategoriesController : ControllerBase
         try
         {
             var publicId = CloudinaryService.CreatePublicId("categoria", category.Name, category.Id);
-            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/categories");
+            var result = await _cloudinaryService!.UploadImageAsync(request.File!, publicId, "gaesde/categories");
             var updatedCategory = await _categoryService.UpdateImageAsync(id, result.Url);
             return Ok(updatedCategory);
         }
@@ -104,7 +101,7 @@ public class CategoriesController : ControllerBase
         try
         {
             var publicId = CloudinaryService.CreatePublicId("categoria", category.Name, category.Id);
-            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/categories");
+            var result = await _cloudinaryService!.UploadImageAsync(request.File!, publicId, "gaesde/categories");
             var updatedCategory = await _categoryService.UpdateImageAsync(id, result.Url);
             return Ok(updatedCategory);
         }

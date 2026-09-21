@@ -11,7 +11,7 @@ namespace GaesdeApi.Tests;
 public class EnrollmentsControllerTests
 {
     private static EnrollmentResponseDto Response() => new(
-        "enrollment-id", "student-id", "course-id", EnrollmentStatus.Active, 25,
+        "enrollment-id", "student-id", "course-id", null, EnrollmentStatus.Active, 25,
         DateTime.UtcNow, null, DateTime.UtcNow, true, false, false);
 
     [Fact]

@@ -24,6 +24,20 @@ public class CategoryService : ICategoryService
         return categories.Select(ToResponse).ToArray();
     }
 
+    public async Task<PaginatedResponse<CategoryResponseDto>> GetPageAsync(
+        PaginationRequest request,
+        string? search = null)
+    {
+        var filter = Builders<Category>.Filter.Empty;
+        if (!string.IsNullOrWhiteSpace(search))
+            filter &= Builders<Category>.Filter.Regex(
+                category => category.Name,
+                new MongoDB.Bson.BsonRegularExpression(search.Trim(), "i"));
+
+        var query = _categoriesCollection.Find(filter).SortBy(category => category.Name);
+        return await MongoPagination.ExecuteAsync(query, request, ToResponse);
+    }
+
     public async Task<CategoryResponseDto?> GetByIdAsync(string id)
     {
         var category = await _categoriesCollection

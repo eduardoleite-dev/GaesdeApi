@@ -14,9 +14,9 @@ namespace GaesdeApi.Controllers;
 public class EnrollmentsController : ControllerBase
 {
     private readonly IEnrollmentService _enrollmentService;
-    private readonly ICloudinaryService _cloudinaryService;
+    private readonly ICloudinaryService? _cloudinaryService;
 
-    public EnrollmentsController(IEnrollmentService enrollmentService, ICloudinaryService cloudinaryService)
+    public EnrollmentsController(IEnrollmentService enrollmentService, ICloudinaryService? cloudinaryService = null)
     {
         _enrollmentService = enrollmentService;
         _cloudinaryService = cloudinaryService;
@@ -65,13 +65,17 @@ public class EnrollmentsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Professor,Administrador,Vendedor")]
     public async Task<IActionResult> Create(CreateEnrollmentRequestDto request)
     {
         var userId = GetUserId();
         if (userId is null)
             return Unauthorized();
 
-        var enrollment = await _enrollmentService.CreateAsync(userId, IsAdministrator(), request);
+        var canEnrollOtherUsers = User.IsInRole(nameof(AccessLevel.Administrador)) ||
+            User.IsInRole(nameof(AccessLevel.Professor)) ||
+            User.IsInRole(nameof(AccessLevel.Vendedor));
+        var enrollment = await _enrollmentService.CreateAsync(userId, canEnrollOtherUsers, request);
         return enrollment is null
             ? Conflict(new { message = Messages.Enrollments.CreateConflict })
             : CreatedAtAction(nameof(GetById), new { id = enrollment.Id }, enrollment);
@@ -137,7 +141,7 @@ public class EnrollmentsController : ControllerBase
         try
         {
             var publicId = CloudinaryService.CreatePublicId("matricula", $"{enrollment.UserId}-{enrollment.CourseId}", enrollment.Id);
-            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/enrollments");
+            var result = await _cloudinaryService!.UploadImageAsync(request.File!, publicId, "gaesde/enrollments");
             var updatedEnrollment = await _enrollmentService.UpdatePhotoAsync(id, userId, isAdministrator, result.Url);
             return updatedEnrollment is null ? NotFound() : Ok(updatedEnrollment);
         }

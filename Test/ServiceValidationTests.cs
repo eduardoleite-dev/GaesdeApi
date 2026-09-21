@@ -123,6 +123,7 @@ public class ServiceValidationTests
 
         var result = await service.CreateAsync(
             "author-id",
+            AccessLevel.Aluno,
             new CreateCommentRequestDto(CommentType.Chat, "Message", Array.Empty<string>()));
 
         Assert.Null(result);

@@ -14,9 +14,9 @@ namespace GaesdeApi.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
-    private readonly ICloudinaryService _cloudinaryService;
+    private readonly ICloudinaryService? _cloudinaryService;
 
-    public UsersController(IUserService userService, ICloudinaryService cloudinaryService)
+    public UsersController(IUserService userService, ICloudinaryService? cloudinaryService = null)
     {
         _userService = userService;
         _cloudinaryService = cloudinaryService;
@@ -98,7 +98,7 @@ public class UsersController : ControllerBase
         try
         {
             var publicId = CloudinaryService.CreatePublicId("usuario", user.Name, user.Id);
-            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/users");
+            var result = await _cloudinaryService!.UploadImageAsync(request.File!, publicId, "gaesde/users");
             var updatedUser = await _userService.UpdateAvatarAsync(id, result.Url);
             return Ok(updatedUser);
         }
@@ -127,7 +127,7 @@ public class UsersController : ControllerBase
         try
         {
             var publicId = CloudinaryService.CreatePublicId("usuario", user.Name, user.Id);
-            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/users");
+            var result = await _cloudinaryService!.UploadImageAsync(request.File!, publicId, "gaesde/users");
             var updatedUser = await _userService.UpdateAvatarAsync(id, result.Url);
             return Ok(updatedUser);
         }

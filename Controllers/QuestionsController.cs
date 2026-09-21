@@ -2,6 +2,7 @@ using GaesdeApi.DTOs;
 using GaesdeApi.Models;
 using GaesdeApi.Services;
 using GaesdeApi.Services.Interfaces;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,18 +14,26 @@ namespace GaesdeApi.Controllers;
 public class QuestionsController : ControllerBase
 {
     private readonly IQuestionService _questionService;
-    private readonly ICloudinaryService _cloudinaryService;
+    private readonly IEnrollmentAccessService? _accessService;
+    private readonly ICloudinaryService? _cloudinaryService;
 
-    public QuestionsController(IQuestionService questionService, ICloudinaryService cloudinaryService)
+    public QuestionsController(IQuestionService questionService, ICloudinaryService? cloudinaryService = null, IEnrollmentAccessService? accessService = null)
     {
         _questionService = questionService;
         _cloudinaryService = cloudinaryService;
+        _accessService = accessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? quizId = null, [FromQuery] QuestionType? type = null)
     {
         var questions = await _questionService.GetAllAsync(quizId);
+        if (IsStudent())
+        {
+            if (string.IsNullOrWhiteSpace(quizId) || _accessService is null ||
+                !await _accessService.CanAccessQuizAsync(GetUserId()!, quizId, AccessLevel.Aluno))
+                return Forbid();
+        }
         if (type.HasValue)
             questions = questions.Where(question => question.Type == type.Value).ToArray();
         return Ok(Utils.Paginate(questions, pagination));
@@ -37,6 +46,9 @@ public class QuestionsController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var question = await _questionService.GetByIdAsync(id);
+        if (question is not null && IsStudent() && _accessService is not null &&
+            !await _accessService.CanAccessQuestionAsync(GetUserId()!, id, AccessLevel.Aluno))
+            return Forbid();
         return question is null ? NotFound() : Ok(question);
     }
 
@@ -64,6 +76,9 @@ public class QuestionsController : ControllerBase
     public async Task<IActionResult> GetPhoto(string id)
     {
         var question = await _questionService.GetByIdAsync(id);
+        if (question is not null && IsStudent() && _accessService is not null &&
+            !await _accessService.CanAccessQuestionAsync(GetUserId()!, id, AccessLevel.Aluno))
+            return Forbid();
         return question is null || string.IsNullOrWhiteSpace(question.PhotoUrl)
             ? NotFound()
             : Ok(new { url = question.PhotoUrl });
@@ -88,7 +103,7 @@ public class QuestionsController : ControllerBase
         try
         {
             var publicId = CloudinaryService.CreatePublicId("questao", question.QuestionText, question.Id);
-            var result = await _cloudinaryService.UploadImageAsync(request.File!, publicId, "gaesde/questions");
+            var result = await _cloudinaryService!.UploadImageAsync(request.File!, publicId, "gaesde/questions");
             var updatedQuestion = await _questionService.UpdatePhotoAsync(id, result.Url);
             return updatedQuestion is null ? NotFound() : Ok(updatedQuestion);
         }
@@ -108,4 +123,7 @@ public class QuestionsController : ControllerBase
     {
         return await _questionService.DeleteAsync(id) ? NoContent() : NotFound();
     }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
+    private bool IsStudent() => User?.IsInRole(nameof(AccessLevel.Aluno)) == true;
 }

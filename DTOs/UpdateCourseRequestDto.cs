@@ -9,5 +9,6 @@ public record UpdateCourseRequestDto(
     decimal Price,
     string? Description = null,
     string? CoverImage = null,
-    string? CategoryId = null
+    string? CategoryId = null,
+    string? InstructorId = null
 );

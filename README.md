@@ -171,7 +171,9 @@ Regras principais:
 - O curso começa como `Draft`.
 - O professor envia o curso para `Review`.
 - O administrador publica ou arquiva.
-- Alunos e vendedores consultam o catálogo publicado.
+- Vendedores consultam o catálogo publicado.
+- Alunos consultam apenas cursos publicados nos quais possuem matrícula ativa ou concluída.
+- A criação de matrículas é permitida para administradores, professores e vendedores.
 
 ### Estrutura educacional
 
@@ -202,6 +204,12 @@ Conteúdos suportados:
 - `Quiz`
 - `Assignment`
 
+#### Acesso por matrícula
+
+Para alunos, módulos, conteúdos, quizzes, questões e opções só são acessíveis quando
+pertencem a um curso com matrícula ativa ou concluída e não expirada. Administradores,
+professores e vendedores seguem as permissões administrativas dos respectivos endpoints.
+
 ### Matrículas e avaliações
 
 ```text
@@ -214,12 +222,72 @@ PATCH  /api/enrollments/{id}/status/{status}
 DELETE /api/enrollments/{id}
 ```
 
+Regras de matrícula:
+
+- Alunos não podem criar matrícula diretamente.
+- Administradores, professores e vendedores podem matricular um aluno informando `userId`.
+- A matrícula possui status `PendingPayment`, `Active`, `Dropped` ou `Completed`.
+- O progresso é atualizado conforme os conteúdos são concluídos.
+
+### Conclusão de conteúdos e progresso
+
+```text
+POST   /api/content-completions/{contentId}
+DELETE /api/content-completions/{contentId}
+GET    /api/content-completions/course/{courseId}/progress
+```
+
+O aluno deve concluir os conteúdos na ordem dos módulos e do `OrderIndex`. O sistema impede
+a conclusão de um conteúdo enquanto houver conteúdo anterior pendente. O progresso retorna:
+
+```json
+{
+  "enrollmentId": "...",
+  "courseId": "...",
+  "totalContents": 10,
+  "completedContents": 4,
+  "progressPercentage": 40,
+  "completedContentIds": []
+}
+```
+
+Ao atingir 100%, a matrícula passa automaticamente para `Completed`.
+
+### Tentativas de quiz
+
+```text
+GET    /api/quiz-attempts?quizId={quizId}
+GET    /api/quiz-attempts/{id}
+POST   /api/quiz-attempts
+PATCH  /api/quiz-attempts/{id}/finish
+PATCH  /api/quiz-attempts/{id}/abandon
+```
+
+Para iniciar uma tentativa:
+
+```json
+{
+  "quizId": "quiz-id",
+  "enrollmentId": "enrollment-id"
+}
+```
+
+Uma tentativa pertence ao aluno autenticado e à matrícula informada. O limite de tentativas
+é definido por `AttemptsAllowed` no quiz. Os estados possíveis são `InProgress`, `Finished`
+e `Abandoned`. O resultado final calcula a pontuação e informa `IsPassed` conforme
+`PassingScorePercentage`.
+
 ```text
 GET/POST/PUT/DELETE /api/useranswers
 GET/POST/PUT/DELETE /api/questionoptions
 ```
 
-O usuário autenticado é usado automaticamente nas matrículas, respostas e submissões. Não envie `userId` pela URL para consultar os próprios dados.
+As respostas devem usar uma tentativa própria e ainda aberta. Questões objetivas são corrigidas
+no servidor; respostas não podem ser alteradas depois que a tentativa é finalizada. A propriedade
+`IsCorrect` das opções não é exposta para alunos.
+
+O usuário autenticado é usado automaticamente nas matrículas, respostas e submissões. Não envie
+`userId` pela URL para consultar os próprios dados.
 
 ### Submissões de atividades
 
@@ -247,7 +315,13 @@ POST   /api/comments/{id}/archive
 DELETE /api/comments/{id}/archive
 ```
 
-Comentários podem ser do tipo `Course` ou `Chat`, possuem destinatários, respostas, anexos, reações e arquivamento individual.
+Comentários podem ser do tipo `Chat`, `Forum` ou `Course` (legado). Chats são conversas diretas
+e exigem destinatários. Fóruns pertencem a um curso, não exigem destinatários e ficam visíveis
+para alunos matriculados, para o professor responsável, para vendedores e para administradores.
+Comentários possuem respostas, anexos, reações e arquivamento individual.
+
+Administradores também podem publicar diretamente no fórum de qualquer curso e iniciar chats
+diretos com usuários autorizados.
 
 ## Upload de mídia
 
@@ -312,7 +386,7 @@ Filtros relevantes:
 - Modules: `courseId`, `search`
 - Contents: `moduleId`, `type`, `freePreview`
 - Questions: `quizId`, `type`
-- QuestionOptions: `questionId`, `isCorrect`
+- QuestionOptions: `questionId` (alunos não devem usar `isCorrect`; a resposta correta não é exposta)
 - Enrollments: `status`, `courseId`
 - UserAnswers: `attemptId`, `questionId`, `isCorrect`
 - AssignmentSubmissions: `contentId`, `enrollmentId`, `graded`
@@ -339,6 +413,8 @@ A estrutura do banco está documentada em [database.dbml](database.dbml).
 - Valide relacionamentos antes de persistir dados.
 - Mantenha datas em UTC.
 - Use exclusão lógica quando o model possuir `DeletedAt`.
+- Use paginação no MongoDB com `CountDocuments`, `Skip` e `Limit`; evite carregar toda a coleção para paginar em memória.
+- Respeite a matrícula do aluno ao consultar qualquer recurso educacional relacionado a um curso.
 - Centralize mensagens em `Utils/Messages.cs`.
 - Registre novos services em `Config/DependencyInjectionConfig.cs`.
 - Adicione testes para novos endpoints e regras de negócio.

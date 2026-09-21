@@ -25,11 +25,41 @@ public class CommentsControllerTests
     }
 
     [Fact]
+    public async Task GetAll_AsProfessorPassesProfessorAccessLevel()
+    {
+        var service = new Mock<ICommentService>();
+        service.Setup(value => value.GetAllAsync("teacher-id", AccessLevel.Professor, "course-id"))
+            .ReturnsAsync(new[] { Response() });
+        var controller = new CommentsController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "teacher-id", "Professor");
+
+        var result = await controller.GetAll(new PaginationRequest(), "course-id");
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.GetAllAsync("teacher-id", AccessLevel.Professor, "course-id"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAll_AsSellerPassesSellerAccessLevel()
+    {
+        var service = new Mock<ICommentService>();
+        service.Setup(value => value.GetAllAsync("seller-id", AccessLevel.Vendedor, null))
+            .ReturnsAsync(new[] { Response() });
+        var controller = new CommentsController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "seller-id", "Vendedor");
+
+        var result = await controller.GetAll();
+
+        Assert.IsType<OkObjectResult>(result);
+        service.Verify(value => value.GetAllAsync("seller-id", AccessLevel.Vendedor, null), Times.Once);
+    }
+
+    [Fact]
     public async Task Create_WhenValid_ReturnsCreated()
     {
         var request = new CreateCommentRequestDto(CommentType.Chat, "Hello", new[] { "recipient-id" });
         var service = new Mock<ICommentService>();
-        service.Setup(value => value.CreateAsync("author-id", request)).ReturnsAsync(Response());
+        service.Setup(value => value.CreateAsync("author-id", AccessLevel.Aluno, request)).ReturnsAsync(Response());
         var controller = new CommentsController(service.Object);
         ControllerTestHelpers.SetUser(controller, "author-id", "Aluno");
 
@@ -46,6 +76,46 @@ public class CommentsControllerTests
         ControllerTestHelpers.SetUser(controller, "user-id", "Aluno");
 
         Assert.IsType<OkObjectResult>(await controller.AddReaction("comment-id", request));
+    }
+
+    [Fact]
+    public async Task CreateForum_UsesAuthorAccessLevel()
+    {
+        var request = new CreateCommentRequestDto(
+            CommentType.Forum,
+            "Forum message",
+            Array.Empty<string>(),
+            "course-id");
+        var service = new Mock<ICommentService>();
+        service.Setup(value => value.CreateAsync("teacher-id", AccessLevel.Professor, request))
+            .ReturnsAsync(Response());
+        var controller = new CommentsController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "teacher-id", "Professor");
+
+        var result = await controller.Create(request);
+
+        Assert.IsType<CreatedAtActionResult>(result);
+        service.Verify(value => value.CreateAsync("teacher-id", AccessLevel.Professor, request), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateForum_AsAdministrator_ReturnsCreated()
+    {
+        var request = new CreateCommentRequestDto(
+            CommentType.Forum,
+            "Aviso administrativo",
+            Array.Empty<string>(),
+            "course-id");
+        var service = new Mock<ICommentService>();
+        service.Setup(value => value.CreateAsync("admin-id", AccessLevel.Administrador, request))
+            .ReturnsAsync(Response());
+        var controller = new CommentsController(service.Object);
+        ControllerTestHelpers.SetUser(controller, "admin-id", "Administrador");
+
+        var result = await controller.Create(request);
+
+        Assert.IsType<CreatedAtActionResult>(result);
+        service.Verify(value => value.CreateAsync("admin-id", AccessLevel.Administrador, request), Times.Once);
     }
 
     [Fact]

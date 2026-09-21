@@ -1,5 +1,6 @@
 using GaesdeApi.Controllers;
 using GaesdeApi.DTOs;
+using GaesdeApi.Models;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -54,5 +55,21 @@ public class QuizzesControllerTests
         ControllerTestHelpers.SetUser(controller, "teacher-id", "Professor");
 
         Assert.IsType<NoContentResult>(await controller.Delete("quiz-id"));
+    }
+
+    [Fact]
+    public async Task GetById_WhenStudentIsNotEnrolled_ReturnsForbid()
+    {
+        var service = new Mock<IQuizService>();
+        service.Setup(value => value.GetByIdAsync("quiz-id")).ReturnsAsync(Response());
+        var access = new Mock<IEnrollmentAccessService>();
+        access.Setup(value => value.CanAccessQuizAsync("student-id", "quiz-id", AccessLevel.Aluno))
+            .ReturnsAsync(false);
+        var controller = new QuizzesController(service.Object, access.Object);
+        ControllerTestHelpers.SetUser(controller, "student-id", "Aluno");
+
+        var result = await controller.GetById("quiz-id");
+
+        Assert.IsType<ForbidResult>(result);
     }
 }

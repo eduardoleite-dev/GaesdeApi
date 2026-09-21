@@ -25,7 +25,7 @@ public class CommentsController : ControllerBase
         var userId = GetUserId();
         if (userId is null)
             return Unauthorized();
-        var comments = await _commentService.GetAllAsync(userId, IsAdministrator(), courseId);
+        var comments = await _commentService.GetAllAsync(userId, GetAccessLevel(), courseId);
         if (type.HasValue)
             comments = comments.Where(comment => comment.Type == type.Value).ToArray();
         return Ok(Utils.Paginate(comments, pagination));
@@ -43,7 +43,7 @@ public class CommentsController : ControllerBase
         var userId = GetUserId();
         if (userId is null)
             return Unauthorized();
-        var comment = await _commentService.GetByIdAsync(id, userId, IsAdministrator());
+        var comment = await _commentService.GetByIdAsync(id, userId, GetAccessLevel());
         return comment is null ? NotFound() : Ok(comment);
     }
 
@@ -53,7 +53,7 @@ public class CommentsController : ControllerBase
         var userId = GetUserId();
         if (userId is null)
             return Unauthorized();
-        var comment = await _commentService.CreateAsync(userId, request);
+        var comment = await _commentService.CreateAsync(userId, GetAccessLevel(), request);
         return comment is null
             ? Conflict(new { message = Messages.Comments.CreateConflict })
             : CreatedAtAction(nameof(GetById), new { id = comment.Id }, comment);
@@ -121,4 +121,15 @@ public class CommentsController : ControllerBase
     private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
     private bool IsAdministrator() => User.IsInRole("Administrador");
+
+    private AccessLevel GetAccessLevel()
+    {
+        if (User.IsInRole(nameof(AccessLevel.Administrador)))
+            return AccessLevel.Administrador;
+        if (User.IsInRole(nameof(AccessLevel.Professor)))
+            return AccessLevel.Professor;
+        if (User.IsInRole(nameof(AccessLevel.Vendedor)))
+            return AccessLevel.Vendedor;
+        return AccessLevel.Aluno;
+    }
 }

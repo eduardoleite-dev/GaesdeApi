@@ -11,12 +11,14 @@ public class CourseService : ICourseService
     private readonly IMongoCollection<Course> _coursesCollection;
     private readonly IMongoCollection<User> _usersCollection;
     private readonly IMongoCollection<Category> _categoriesCollection;
+    private readonly IMongoCollection<Enrollment> _enrollmentsCollection;
 
     public CourseService(IMongoDatabase database)
     {
         _coursesCollection = database.GetCollection<Course>("Courses");
         _usersCollection = database.GetCollection<User>("Users");
         _categoriesCollection = database.GetCollection<Category>("Categories");
+        _enrollmentsCollection = database.GetCollection<Enrollment>("Enrollments");
     }
 
     public async Task<IReadOnlyCollection<CourseResponseDto>> GetAllAsync()
@@ -37,9 +39,13 @@ public class CourseService : ICourseService
             AccessLevel.Professor => Builders<Course>.Filter.And(
                 Builders<Course>.Filter.Eq(course => course.InstructorId, userId),
                 Builders<Course>.Filter.Eq(course => course.DeletedAt, null)),
+            AccessLevel.Vendedor => Builders<Course>.Filter.And(
+                Builders<Course>.Filter.Eq(course => course.Status, CourseStatus.Published),
+                Builders<Course>.Filter.Eq(course => course.DeletedAt, null)),
             _ => Builders<Course>.Filter.And(
                 Builders<Course>.Filter.Eq(course => course.Status, CourseStatus.Published),
-                Builders<Course>.Filter.Eq(course => course.DeletedAt, null))
+                Builders<Course>.Filter.Eq(course => course.DeletedAt, null),
+                Builders<Course>.Filter.In(course => course.Id, await GetEnrolledCourseIdsAsync(userId)))
         };
 
         var courses = await _coursesCollection.Find(filter)
@@ -64,8 +70,10 @@ public class CourseService : ICourseService
             .Find(existingCourse => existingCourse.Id == id && existingCourse.DeletedAt == null)
             .FirstOrDefaultAsync();
 
+        var isEnrolled = accessLevel != AccessLevel.Aluno || await IsEnrolledAsync(userId, id);
         if (course is null ||
             (accessLevel == AccessLevel.Professor && course.InstructorId != userId) ||
+            (accessLevel == AccessLevel.Aluno && !isEnrolled) ||
             (accessLevel != AccessLevel.Administrador &&
              accessLevel != AccessLevel.Professor &&
              course.Status != CourseStatus.Published))
@@ -73,6 +81,20 @@ public class CourseService : ICourseService
 
         return ToResponse(course);
     }
+
+    private async Task<string[]> GetEnrolledCourseIdsAsync(string userId)
+    {
+        var courseIds = await _enrollmentsCollection.Find(enrollment =>
+                enrollment.UserId == userId &&
+                (enrollment.Status == EnrollmentStatus.Active || enrollment.Status == EnrollmentStatus.Completed) &&
+                (enrollment.ExpiresAt == null || enrollment.ExpiresAt > DateTime.UtcNow))
+            .Project(enrollment => enrollment.CourseId)
+            .ToListAsync();
+        return courseIds.ToArray();
+    }
+
+    private async Task<bool> IsEnrolledAsync(string userId, string courseId) =>
+        (await GetEnrolledCourseIdsAsync(userId)).Contains(courseId);
 
     public async Task<CourseResponseDto?> CreateAsync(string instructorId, CreateCourseRequestDto request)
     {
@@ -135,6 +157,14 @@ public class CourseService : ICourseService
         course.Price = request.Price;
         course.Level = request.Level;
         course.CategoryId = request.CategoryId;
+
+        if (isAdministrator && !string.IsNullOrWhiteSpace(request.InstructorId))
+        {
+            if (!await IsProfessorOrAdministratorAsync(request.InstructorId.Trim()))
+                return null;
+            course.InstructorId = request.InstructorId.Trim();
+        }
+
         course.UpdatedAt = DateTime.UtcNow;
 
         await _coursesCollection.ReplaceOneAsync(existingCourse => existingCourse.Id == id, course);

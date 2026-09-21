@@ -51,7 +51,7 @@ public class AssignmentSubmissionService : IAssignmentSubmissionService
     {
         if (!IsHttpUrl(request.FileUrl) ||
             !await IsAssignmentContentAsync(request.ContentId) ||
-            !await EnrollmentBelongsToUserAsync(request.EnrollmentId, userId) ||
+            !await ActiveEnrollmentBelongsToUserAsync(request.EnrollmentId, userId) ||
             !await EnrollmentMatchesCourseAsync(request.EnrollmentId, request.ContentId) ||
             await SubmissionExistsAsync(request.EnrollmentId, request.ContentId))
             return null;
@@ -109,8 +109,12 @@ public class AssignmentSubmissionService : IAssignmentSubmissionService
         await _contentsCollection.Find(content => content.Id == contentId && content.Type == ContentType.Assignment)
             .Limit(1).AnyAsync();
 
-    private async Task<bool> EnrollmentBelongsToUserAsync(string enrollmentId, string userId) =>
-        await _enrollmentsCollection.Find(enrollment => enrollment.Id == enrollmentId && enrollment.UserId == userId)
+    private async Task<bool> ActiveEnrollmentBelongsToUserAsync(string enrollmentId, string userId) =>
+        await _enrollmentsCollection.Find(enrollment =>
+                enrollment.Id == enrollmentId &&
+                enrollment.UserId == userId &&
+                enrollment.Status == EnrollmentStatus.Active &&
+                (enrollment.ExpiresAt == null || enrollment.ExpiresAt > DateTime.UtcNow))
             .Limit(1).AnyAsync();
 
     private async Task<bool> EnrollmentMatchesCourseAsync(string enrollmentId, string contentId)

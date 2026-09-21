@@ -1,4 +1,6 @@
 using GaesdeApi.DTOs;
+using GaesdeApi.Models;
+using System.Security.Claims;
 using GaesdeApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,18 +13,28 @@ namespace GaesdeApi.Controllers;
 public class QuestionOptionsController : ControllerBase
 {
     private readonly IQuestionOptionService _questionOptionService;
+    private readonly IEnrollmentAccessService? _accessService;
 
-    public QuestionOptionsController(IQuestionOptionService questionOptionService)
+    public QuestionOptionsController(IQuestionOptionService questionOptionService, IEnrollmentAccessService? accessService = null)
     {
         _questionOptionService = questionOptionService;
+        _accessService = accessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination, [FromQuery] string? questionId = null, [FromQuery] bool? isCorrect = null)
     {
         var options = await _questionOptionService.GetAllAsync(questionId);
-        if (isCorrect.HasValue)
+        if (IsStudent())
+        {
+            if (string.IsNullOrWhiteSpace(questionId) || _accessService is null ||
+                !await _accessService.CanAccessQuestionAsync(GetUserId()!, questionId, AccessLevel.Aluno))
+                return Forbid();
+        }
+        if (isCorrect.HasValue && !IsStudent())
             options = options.Where(option => option.IsCorrect == isCorrect.Value).ToArray();
+        if (IsStudent())
+            return Ok(Utils.Paginate(options.Select(ToStudentResponse), pagination));
         return Ok(Utils.Paginate(options, pagination));
     }
 
@@ -33,7 +45,14 @@ public class QuestionOptionsController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var option = await _questionOptionService.GetByIdAsync(id);
-        return option is null ? NotFound() : Ok(option);
+        if (option is not null && IsStudent() && _accessService is not null &&
+            !await _accessService.CanAccessOptionAsync(GetUserId()!, id, AccessLevel.Aluno))
+            return Forbid();
+        return option is null
+            ? NotFound()
+            : IsStudent()
+                ? Ok(ToStudentResponse(option))
+                : Ok(option);
     }
 
     [HttpPost]
@@ -62,4 +81,13 @@ public class QuestionOptionsController : ControllerBase
     {
         return await _questionOptionService.DeleteAsync(id) ? NoContent() : NotFound();
     }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
+    private bool IsStudent() => User?.IsInRole(nameof(AccessLevel.Aluno)) == true;
+
+    private static StudentQuestionOptionResponseDto ToStudentResponse(QuestionOptionResponseDto option) => new(
+        option.Id,
+        option.QuestionId,
+        option.OptionText,
+        option.CreatedAt);
 }

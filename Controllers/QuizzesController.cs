@@ -1,5 +1,7 @@
 using GaesdeApi.DTOs;
 using GaesdeApi.Services.Interfaces;
+using GaesdeApi.Models;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,16 +13,26 @@ namespace GaesdeApi.Controllers;
 public class QuizzesController : ControllerBase
 {
     private readonly IQuizService _quizService;
+    private readonly IEnrollmentAccessService? _accessService;
 
-    public QuizzesController(IQuizService quizService)
+    public QuizzesController(IQuizService quizService, IEnrollmentAccessService? accessService = null)
     {
         _quizService = quizService;
+        _accessService = accessService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationRequest pagination)
     {
-        return Ok(Utils.Paginate(await _quizService.GetAllAsync(), pagination));
+        var quizzes = await _quizService.GetAllAsync();
+        if (IsStudent() && _accessService is not null)
+        {
+            var userId = GetUserId()!;
+            var accessible = await Task.WhenAll(quizzes.Select(async quiz =>
+                new { Quiz = quiz, Allowed = await _accessService.CanAccessQuizAsync(userId, quiz.Id, AccessLevel.Aluno) }));
+            quizzes = accessible.Where(value => value.Allowed).Select(value => value.Quiz).ToArray();
+        }
+        return Ok(Utils.Paginate(quizzes, pagination));
     }
 
     [NonAction]
@@ -30,6 +42,9 @@ public class QuizzesController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var quiz = await _quizService.GetByIdAsync(id);
+        if (quiz is not null && IsStudent() && _accessService is not null &&
+            !await _accessService.CanAccessQuizAsync(GetUserId()!, id, AccessLevel.Aluno))
+            return Forbid();
         return quiz is null ? NotFound() : Ok(quiz);
     }
 
@@ -59,4 +74,7 @@ public class QuizzesController : ControllerBase
     {
         return await _quizService.DeleteAsync(id) ? NoContent() : NotFound();
     }
+
+    private string? GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier);
+    private bool IsStudent() => User?.IsInRole(nameof(AccessLevel.Aluno)) == true;
 }

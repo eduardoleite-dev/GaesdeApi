@@ -10,19 +10,32 @@ public class UserAnswerService : IUserAnswerService
     private readonly IMongoCollection<UserAnswer> _answersCollection;
     private readonly IMongoCollection<Question> _questionsCollection;
     private readonly IMongoCollection<QuestionOption> _optionsCollection;
+        private readonly IMongoCollection<QuizAttempt> _attemptsCollection;
 
     public UserAnswerService(IMongoDatabase database)
     {
         _answersCollection = database.GetCollection<UserAnswer>("UserAnswers");
         _questionsCollection = database.GetCollection<Question>("Questions");
         _optionsCollection = database.GetCollection<QuestionOption>("QuestionOptions");
+            _attemptsCollection = database.GetCollection<QuizAttempt>("QuizAttempts");
     }
 
-    public async Task<IReadOnlyCollection<UserAnswerResponseDto>> GetAllAsync(string? attemptId = null)
+        public async Task<IReadOnlyCollection<UserAnswerResponseDto>> GetAllAsync(
+            string? attemptId = null,
+            string? userId = null,
+            bool isAdministrator = false)
     {
         var filter = string.IsNullOrWhiteSpace(attemptId)
             ? Builders<UserAnswer>.Filter.Empty
             : Builders<UserAnswer>.Filter.Eq(answer => answer.AttemptId, attemptId);
+
+            if (!isAdministrator && !string.IsNullOrWhiteSpace(userId))
+            {
+                var attemptIds = await _attemptsCollection.Find(value => value.UserId == userId)
+                    .Project(value => value.Id)
+                    .ToListAsync();
+                filter &= Builders<UserAnswer>.Filter.In(answer => answer.AttemptId, attemptIds);
+            }
 
         var answers = await _answersCollection
             .Find(filter)
@@ -32,23 +45,36 @@ public class UserAnswerService : IUserAnswerService
         return answers.Select(ToResponse).ToArray();
     }
 
-    public async Task<UserAnswerResponseDto?> GetByIdAsync(string id)
+    public async Task<UserAnswerResponseDto?> GetByIdAsync(string id, string? userId = null, bool isAdministrator = false)
     {
-        var answer = await _answersCollection
-            .Find(existingAnswer => existingAnswer.Id == id)
+        var filter = Builders<UserAnswer>.Filter.Eq(answer => answer.Id, id);
+        if (!isAdministrator && !string.IsNullOrWhiteSpace(userId))
+            filter &= await OwnedAnswerFilterAsync(userId);
+        var answer = await _answersCollection.Find(filter)
             .FirstOrDefaultAsync();
 
         return answer is null ? null : ToResponse(answer);
     }
 
-    public async Task<UserAnswerResponseDto?> CreateAsync(CreateUserAnswerRequestDto request)
+    public async Task<UserAnswerResponseDto?> CreateAsync(CreateUserAnswerRequestDto request, string? userId = null)
     {
         if (!IsValid(request.AttemptId, request.QuestionId, request.SelectedOptionId,
-                request.SelectedOptionIds, request.TextResponse) ||
-            !await QuestionExistsAsync(request.QuestionId) ||
+            request.SelectedOptionIds, request.TextResponse))
+            return null;
+
+        var attempt = await _attemptsCollection.Find(value =>
+                value.Id == request.AttemptId &&
+                (userId == null || value.UserId == userId) &&
+                value.Status == QuizAttemptStatus.InProgress)
+            .FirstOrDefaultAsync();
+        var question = await _questionsCollection.Find(value => value.Id == request.QuestionId).FirstOrDefaultAsync();
+        if (attempt is null || question is null ||
+            question.QuizId != attempt.QuizId ||
             !await OptionsBelongToQuestionAsync(request.QuestionId, request.SelectedOptionId, request.SelectedOptionIds) ||
             await AnswerExistsAsync(request.AttemptId, request.QuestionId))
             return null;
+
+        var grading = await GradeAsync(question, request.SelectedOptionId, request.SelectedOptionIds);
 
         var answer = new UserAnswer
         {
@@ -57,6 +83,8 @@ public class UserAnswerService : IUserAnswerService
             SelectedOptionId = request.SelectedOptionId,
             SelectedOptionIds = request.SelectedOptionIds,
             TextResponse = request.TextResponse,
+            IsCorrect = grading.IsCorrect,
+            PointsEarned = grading.PointsEarned,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -64,34 +92,83 @@ public class UserAnswerService : IUserAnswerService
         return ToResponse(answer);
     }
 
-    public async Task<UserAnswerResponseDto?> UpdateAsync(string id, UpdateUserAnswerRequestDto request)
+    public async Task<UserAnswerResponseDto?> UpdateAsync(
+        string id,
+        UpdateUserAnswerRequestDto request,
+        string? userId = null,
+        bool isAdministrator = false)
     {
         if (request.PointsEarned < 0 ||
             !IsValidSelection(request.SelectedOptionId, request.SelectedOptionIds, request.TextResponse))
             return null;
 
-        var answer = await _answersCollection
-            .Find(existingAnswer => existingAnswer.Id == id)
+        var filter = Builders<UserAnswer>.Filter.Eq(answer => answer.Id, id);
+        if (!isAdministrator && !string.IsNullOrWhiteSpace(userId))
+            filter &= await OwnedAnswerFilterAsync(userId);
+        var answer = await _answersCollection.Find(filter)
             .FirstOrDefaultAsync();
 
         if (answer is null ||
             !await OptionsBelongToQuestionAsync(answer.QuestionId, request.SelectedOptionId, request.SelectedOptionIds))
             return null;
 
+        var attempt = await _attemptsCollection.Find(value => value.Id == answer.AttemptId)
+            .FirstOrDefaultAsync();
+        if (attempt is null || attempt.Status != QuizAttemptStatus.InProgress)
+            return null;
+
         answer.SelectedOptionId = request.SelectedOptionId;
         answer.SelectedOptionIds = request.SelectedOptionIds;
         answer.TextResponse = request.TextResponse;
-        answer.IsCorrect = request.IsCorrect;
-        answer.PointsEarned = request.PointsEarned;
+            var question = await _questionsCollection.Find(value => value.Id == answer.QuestionId).FirstOrDefaultAsync();
+            if (question is not null)
+            {
+                var grading = await GradeAsync(question, request.SelectedOptionId, request.SelectedOptionIds);
+                answer.IsCorrect = grading.IsCorrect;
+                answer.PointsEarned = grading.PointsEarned;
+            }
 
         await _answersCollection.ReplaceOneAsync(existingAnswer => existingAnswer.Id == id, answer);
         return ToResponse(answer);
     }
 
-    public async Task<bool> DeleteAsync(string id)
+    public async Task<bool> DeleteAsync(string id, string? userId = null, bool isAdministrator = false)
     {
-        var result = await _answersCollection.DeleteOneAsync(answer => answer.Id == id);
+        var filter = Builders<UserAnswer>.Filter.Eq(answer => answer.Id, id);
+        if (!isAdministrator && !string.IsNullOrWhiteSpace(userId))
+            filter &= await OwnedAnswerFilterAsync(userId);
+        var result = await _answersCollection.DeleteOneAsync(filter);
         return result.DeletedCount > 0;
+    }
+
+    private async Task<FilterDefinition<UserAnswer>> OwnedAnswerFilterAsync(string userId)
+    {
+        var attemptIds = await _attemptsCollection.Find(value => value.UserId == userId)
+            .Project(value => value.Id)
+            .ToListAsync();
+        return Builders<UserAnswer>.Filter.In(answer => answer.AttemptId, attemptIds);
+    }
+
+    private async Task<(bool? IsCorrect, decimal PointsEarned)> GradeAsync(
+        Question question,
+        string? selectedOptionId,
+        IReadOnlyCollection<string>? selectedOptionIds)
+    {
+        var selectedIds = new[] { selectedOptionId }
+            .Concat(selectedOptionIds ?? Array.Empty<string>())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct()
+            .ToHashSet();
+        if (selectedIds.Count == 0 || question.Type == QuestionType.Essay)
+            return (null, 0);
+
+        var correctIds = (await _optionsCollection.Find(value =>
+                value.QuestionId == question.Id && value.IsCorrect)
+            .Project(value => value.Id)
+            .ToListAsync())
+            .ToHashSet();
+        var isCorrect = selectedIds.SetEquals(correctIds);
+        return (isCorrect, isCorrect ? question.Points : 0);
     }
 
     private async Task<bool> QuestionExistsAsync(string questionId)

@@ -9,23 +9,23 @@ public class CommentService : ICommentService
 {
     private readonly IMongoCollection<Comment> _commentsCollection;
     private readonly IMongoCollection<Course> _coursesCollection;
+    private readonly IMongoCollection<User> _usersCollection;
+    private readonly IMongoCollection<Enrollment> _enrollmentsCollection;
 
     public CommentService(IMongoDatabase database)
     {
         _commentsCollection = database.GetCollection<Comment>("Comments");
         _coursesCollection = database.GetCollection<Course>("Courses");
+        _usersCollection = database.GetCollection<User>("Users");
+        _enrollmentsCollection = database.GetCollection<Enrollment>("Enrollments");
     }
 
     public async Task<IReadOnlyCollection<CommentResponseDto>> GetAllAsync(
         string userId,
-        bool isAdministrator,
+        AccessLevel accessLevel,
         string? courseId = null)
     {
         var filter = Builders<Comment>.Filter.Eq(comment => comment.DeletedAt, null);
-        if (!isAdministrator)
-            filter &= Builders<Comment>.Filter.Or(
-                Builders<Comment>.Filter.Eq(comment => comment.AuthorId, userId),
-                Builders<Comment>.Filter.AnyIn(comment => comment.RecipientIds, new[] { userId }));
         if (!string.IsNullOrWhiteSpace(courseId))
             filter &= Builders<Comment>.Filter.Eq(comment => comment.CourseId, courseId);
 
@@ -34,33 +34,40 @@ public class CommentService : ICommentService
             .SortByDescending(comment => comment.CreatedAt)
             .ToListAsync();
 
-        return comments
-            .Where(comment => isAdministrator || !comment.ArchivedBy.Contains(userId))
+        var visibleComments = new List<Comment>();
+        foreach (var comment in comments)
+        {
+            if (await CanViewAsync(comment, userId, accessLevel))
+                visibleComments.Add(comment);
+        }
+
+        return visibleComments
+            .Where(comment => accessLevel == AccessLevel.Administrador || !comment.ArchivedBy.Contains(userId))
             .Select(ToResponse)
             .ToArray();
     }
 
-    public async Task<CommentResponseDto?> GetByIdAsync(string id, string userId, bool isAdministrator)
+    public async Task<CommentResponseDto?> GetByIdAsync(string id, string userId, AccessLevel accessLevel)
     {
         var filter = Builders<Comment>.Filter.And(
             Builders<Comment>.Filter.Eq(comment => comment.Id, id),
             Builders<Comment>.Filter.Eq(comment => comment.DeletedAt, null));
-        if (!isAdministrator)
-            filter &= Builders<Comment>.Filter.Or(
-                Builders<Comment>.Filter.Eq(comment => comment.AuthorId, userId),
-                Builders<Comment>.Filter.AnyIn(comment => comment.RecipientIds, new[] { userId }));
-
         var comment = await _commentsCollection.Find(filter).FirstOrDefaultAsync();
-        return comment is null || (!isAdministrator && comment.ArchivedBy.Contains(userId))
+        return comment is null || (!await CanViewAsync(comment, userId, accessLevel) ||
+            accessLevel != AccessLevel.Administrador && comment.ArchivedBy.Contains(userId))
             ? null
             : ToResponse(comment);
     }
 
-    public async Task<CommentResponseDto?> CreateAsync(string authorId, CreateCommentRequestDto request)
+    public async Task<CommentResponseDto?> CreateAsync(
+        string authorId,
+        AccessLevel authorAccessLevel,
+        CreateCommentRequestDto request)
     {
         if (!IsValid(request.Type, request.Content, request.RecipientIds, request.CourseId, request.Attachments) ||
             !await CourseExistsAsync(request.Type, request.CourseId) ||
-            !await ParentExistsAsync(request.ParentId))
+            !await ParentExistsAsync(request.ParentId) ||
+            !await CanCreateAsync(authorId, authorAccessLevel, request))
             return null;
 
         var now = DateTime.UtcNow;
@@ -98,7 +105,8 @@ public class CommentService : ICommentService
                 Builders<Comment>.Filter.Eq(comment => comment.Id, id),
                 Builders<Comment>.Filter.Eq(comment => comment.AuthorId, userId));
         var comment = await _commentsCollection.Find(filter).FirstOrDefaultAsync();
-        if (comment is null || comment.DeletedAt is not null)
+        if (comment is null || comment.DeletedAt is not null ||
+            comment.Type == CommentType.Chat && request.RecipientIds.Count == 0)
             return null;
 
         comment.Content = request.Content;
@@ -182,7 +190,11 @@ public class CommentService : ICommentService
         var comment = await _commentsCollection.Find(existingComment =>
                 existingComment.Id == id && existingComment.DeletedAt == null)
             .FirstOrDefaultAsync();
-        return comment is null || (!includeArchived && comment.ArchivedBy.Contains(userId)) ? null : comment;
+        if (comment is null || (!includeArchived && comment.ArchivedBy.Contains(userId)))
+            return null;
+
+        var canSeeComment = comment.AuthorId == userId || comment.RecipientIds.Contains(userId);
+        return canSeeComment ? comment : null;
     }
 
     private async Task<bool> CourseExistsAsync(CommentType type, string? courseId)
@@ -203,13 +215,96 @@ public class CommentService : ICommentService
 
     private static bool IsValid(CommentType type, string? content, IReadOnlyCollection<string> recipients, string? courseId, IReadOnlyCollection<CommentAttachmentDto>? attachments) =>
         Enum.IsDefined(type) && IsValidContent(content, recipients, attachments) &&
+        (type != CommentType.Chat || recipients.Count > 0) &&
         (type == CommentType.Chat || !string.IsNullOrWhiteSpace(courseId));
 
     private static bool IsValidContent(string? content, IReadOnlyCollection<string> recipients, IReadOnlyCollection<CommentAttachmentDto>? attachments) =>
-        recipients.Count > 0 && (content?.Length ?? 0) <= 5000 &&
+        (content?.Length ?? 0) <= 5000 &&
         (!string.IsNullOrWhiteSpace(content) || attachments?.Count > 0) &&
         (attachments is null || attachments.All(attachment => attachment.FileSize >= 0 &&
             !string.IsNullOrWhiteSpace(attachment.Url) && !string.IsNullOrWhiteSpace(attachment.FileName)));
+
+    private async Task<bool> CanCreateAsync(
+        string authorId,
+        AccessLevel accessLevel,
+        CreateCommentRequestDto request)
+    {
+        if (request.Type == CommentType.Chat)
+            return await RecipientsExistAsync(request.RecipientIds);
+
+        if (request.CourseId is null)
+            return false;
+
+        if (accessLevel == AccessLevel.Administrador)
+            return true;
+
+        if (accessLevel == AccessLevel.Vendedor)
+            return await IsPublishedCourseAsync(request.CourseId);
+
+        if (accessLevel == AccessLevel.Professor)
+            return await _coursesCollection.Find(course =>
+                    course.Id == request.CourseId && course.InstructorId == authorId && course.DeletedAt == null)
+                .Limit(1)
+                .AnyAsync();
+
+        return await _enrollmentsCollection.Find(enrollment =>
+                enrollment.UserId == authorId && enrollment.CourseId == request.CourseId &&
+                (enrollment.Status == EnrollmentStatus.Active || enrollment.Status == EnrollmentStatus.Completed) &&
+                (enrollment.ExpiresAt == null || enrollment.ExpiresAt > DateTime.UtcNow))
+            .Limit(1)
+            .AnyAsync();
+    }
+
+    private async Task<bool> CanViewAsync(Comment comment, string userId, AccessLevel accessLevel)
+    {
+        if (accessLevel == AccessLevel.Administrador)
+            return true;
+
+        if (comment.Type == CommentType.Chat)
+            return comment.AuthorId == userId || comment.RecipientIds.Contains(userId);
+
+        if (comment.CourseId is null)
+            return false;
+
+        if (accessLevel == AccessLevel.Vendedor)
+            return await IsPublishedCourseAsync(comment.CourseId);
+
+        if (accessLevel == AccessLevel.Professor)
+            return await _coursesCollection.Find(course =>
+                    course.Id == comment.CourseId && course.InstructorId == userId && course.DeletedAt == null)
+                .Limit(1)
+                .AnyAsync();
+
+        return await _enrollmentsCollection.Find(enrollment =>
+                enrollment.UserId == userId && enrollment.CourseId == comment.CourseId &&
+                (enrollment.Status == EnrollmentStatus.Active || enrollment.Status == EnrollmentStatus.Completed) &&
+                (enrollment.ExpiresAt == null || enrollment.ExpiresAt > DateTime.UtcNow))
+            .Limit(1)
+            .AnyAsync();
+    }
+
+    private async Task<bool> IsPublishedCourseAsync(string? courseId)
+    {
+        if (string.IsNullOrWhiteSpace(courseId))
+            return false;
+
+        return await _coursesCollection.Find(course =>
+                course.Id == courseId &&
+                course.Status == CourseStatus.Published &&
+                course.DeletedAt == null)
+            .Limit(1)
+            .AnyAsync();
+    }
+
+    private async Task<bool> RecipientsExistAsync(IReadOnlyCollection<string> recipientIds)
+    {
+        if (recipientIds.Count == 0)
+            return false;
+        var count = await _usersCollection.Find(user =>
+                recipientIds.Contains(user.Id) && user.DeletedAt == null)
+            .CountDocumentsAsync();
+        return count == recipientIds.Distinct().Count();
+    }
 
     private static IReadOnlyCollection<CommentAttachment> ToAttachments(IReadOnlyCollection<CommentAttachmentDto>? attachments) =>
         attachments?.Select(attachment => new CommentAttachment
